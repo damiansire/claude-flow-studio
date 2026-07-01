@@ -1,9 +1,11 @@
 //! Comandos de staging: el único camino para tocar un archivo real de
 //! `~/.claude` es `stage_change` seguido de `apply_staged` — no hay ningún
-//! comando de "escribir directo".
+//! comando de "escribir directo". Son `async fn` + `blocking(...)`: el I/O
+//! (leer/escribir borradores, backups, historial) no corre en el hilo principal.
 
 use cf_core::staging::{AppliedChange, StagedChange, StagingStore};
 
+use crate::commands::blocking;
 use crate::error::AppError;
 use crate::paths::{app_data_dir, claude_dir, ensure_within_claude_dir};
 
@@ -15,7 +17,7 @@ fn store(app: &tauri::AppHandle) -> Result<StagingStore, AppError> {
 }
 
 #[tauri::command]
-pub fn stage_change(
+pub async fn stage_change(
     app: tauri::AppHandle,
     target_path: String,
     draft_content: String,
@@ -23,35 +25,42 @@ pub fn stage_change(
     let dir = claude_dir(&app)?;
     let target = std::path::PathBuf::from(target_path);
     ensure_within_claude_dir(&dir, &target)?;
-    Ok(store(&app)?.stage(&target, draft_content)?)
+    let store = store(&app)?;
+    blocking(move || Ok(store.stage(&target, draft_content)?)).await
 }
 
 #[tauri::command]
-pub fn list_staged(app: tauri::AppHandle) -> Result<Vec<StagedChange>, AppError> {
-    Ok(store(&app)?.list()?)
+pub async fn list_staged(app: tauri::AppHandle) -> Result<Vec<StagedChange>, AppError> {
+    let store = store(&app)?;
+    blocking(move || Ok(store.list()?)).await
 }
 
 #[tauri::command]
-pub fn diff_staged(app: tauri::AppHandle, id: String) -> Result<String, AppError> {
-    Ok(store(&app)?.diff(&id)?)
+pub async fn diff_staged(app: tauri::AppHandle, id: String) -> Result<String, AppError> {
+    let store = store(&app)?;
+    blocking(move || Ok(store.diff(&id)?)).await
 }
 
 #[tauri::command]
-pub fn discard_staged(app: tauri::AppHandle, id: String) -> Result<(), AppError> {
-    Ok(store(&app)?.discard(&id)?)
+pub async fn discard_staged(app: tauri::AppHandle, id: String) -> Result<(), AppError> {
+    let store = store(&app)?;
+    blocking(move || Ok(store.discard(&id)?)).await
 }
 
 #[tauri::command]
-pub fn apply_staged(app: tauri::AppHandle, id: String) -> Result<AppliedChange, AppError> {
-    Ok(store(&app)?.apply(&id)?)
+pub async fn apply_staged(app: tauri::AppHandle, id: String) -> Result<AppliedChange, AppError> {
+    let store = store(&app)?;
+    blocking(move || Ok(store.apply(&id)?)).await
 }
 
 #[tauri::command]
-pub fn list_history(app: tauri::AppHandle) -> Result<Vec<AppliedChange>, AppError> {
-    Ok(store(&app)?.history()?)
+pub async fn list_history(app: tauri::AppHandle) -> Result<Vec<AppliedChange>, AppError> {
+    let store = store(&app)?;
+    blocking(move || Ok(store.history()?)).await
 }
 
 #[tauri::command]
-pub fn revert_applied(app: tauri::AppHandle, id: String) -> Result<AppliedChange, AppError> {
-    Ok(store(&app)?.revert(&id)?)
+pub async fn revert_applied(app: tauri::AppHandle, id: String) -> Result<AppliedChange, AppError> {
+    let store = store(&app)?;
+    blocking(move || Ok(store.revert(&id)?)).await
 }

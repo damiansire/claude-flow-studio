@@ -159,7 +159,14 @@ fn strip_quotes(value: &str) -> String {
 /// lee como "sin frontmatter" (le pasaba de verdad a una skill real).
 pub fn parse(source: &str) -> FrontmatterDoc {
     let without_bom = source.strip_prefix('\u{feff}').unwrap_or(source);
-    let normalized = without_bom.replace("\r\n", "\n");
+    // Fast-path: la gran mayoría de los archivos ya vienen con LF; evitamos
+    // copiar el contenido entero (el cuerpo de un SKILL.md suele ser extenso)
+    // cuando no hay ningún CRLF que normalizar.
+    let normalized = if without_bom.contains('\r') {
+        without_bom.replace("\r\n", "\n")
+    } else {
+        without_bom.to_string()
+    };
     let Some(rest) = normalized.strip_prefix("---\n") else {
         return FrontmatterDoc {
             frontmatter_raw: None,

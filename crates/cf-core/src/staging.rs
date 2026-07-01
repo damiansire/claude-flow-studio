@@ -324,15 +324,31 @@ impl StagingStore {
         Ok(out)
     }
 
+    /// Busca una entrada de historial por id sin construir/reordenar el Vec
+    /// entero: recorre el log más reciente primero y corta en la primera
+    /// coincidencia (los ids son únicos). Es lo que usa `revert`.
+    fn find_applied(&self, id: &str) -> Result<AppliedChange, StagingError> {
+        if !self.history_path.is_file() {
+            return Err(StagingError::NotFound(id.to_string()));
+        }
+        let raw = fs::read_to_string(&self.history_path).map_err(|source| StagingError::Io {
+            path: self.history_path.clone(),
+            source,
+        })?;
+        for line in raw.lines().rev().filter(|l| !l.trim().is_empty()) {
+            let entry: AppliedChange = serde_json::from_str(line)?;
+            if entry.id == id {
+                return Ok(entry);
+            }
+        }
+        Err(StagingError::NotFound(id.to_string()))
+    }
+
     /// Revierte un cambio ya aplicado: copia su backup de vuelta al archivo
     /// real. Registra el estado actual (pre-revert) como un nuevo backup, así
     /// revertir nunca es un callejón sin salida.
     pub fn revert(&self, applied_id: &str) -> Result<AppliedChange, StagingError> {
-        let entry = self
-            .history()?
-            .into_iter()
-            .find(|a| a.id == applied_id)
-            .ok_or_else(|| StagingError::NotFound(applied_id.to_string()))?;
+        let entry = self.find_applied(applied_id)?;
         // Mismo motivo que apply: el history.jsonl vive fuera del scoping, así
         // que revalidamos el boundary antes de escribir el archivo real.
         self.check_boundary(&entry.target_path)?;
