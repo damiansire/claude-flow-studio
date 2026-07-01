@@ -8,7 +8,10 @@ use crate::error::AppError;
 use crate::paths::{app_data_dir, claude_dir, ensure_within_claude_dir};
 
 fn store(app: &tauri::AppHandle) -> Result<StagingStore, AppError> {
-    Ok(StagingStore::new(&app_data_dir(app)?))
+    // Boundary cableado a ~/.claude: cf-core revalida cada escritura (apply /
+    // revert) contra este root, no solo el chequeo de abajo al crear el
+    // borrador. Defensa en profundidad ante drafts/history adulterados.
+    Ok(StagingStore::new(&app_data_dir(app)?).with_boundary(&claude_dir(app)?))
 }
 
 #[tauri::command]
