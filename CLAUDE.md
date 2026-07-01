@@ -24,9 +24,26 @@ App de escritorio (Tauri v2 + Rust) para ver y editar la configuración de Claud
 
 Nunca se escribe directo a un archivo real de `~/.claude`. Todo cambio pasa por:
 borrador (en el directorio de datos de la app, no en `~/.claude`) → diff contra el
-archivo real → "Aplicar" (con backup timestamped) o "Descartar". `settings.json` se
-parchea por clave (`serde_json::Value`), nunca se reescribe entero. Si tocás
-`staging.rs`, no rompas este flujo — es la razón de ser del proyecto.
+archivo real → "Aplicar" (con backup timestamped) o "Descartar". Detalles que son
+contrato, no aspiración (hay tests que fallan si se rompen):
+
+- **El boundary se revalida en TODO camino de escritura**, no solo al crear el
+  borrador: `StagingStore::with_boundary` hace que `apply`/`revert` rechacen
+  (fail-closed) cualquier `target_path` fuera de `~/.claude` antes de escribir —
+  defensa en profundidad ante un borrador o `history.jsonl` adulterado.
+- **`settings.json` (y todo `.json`) se parchea por clave**: se parsea el borrador
+  (`serde_json::Value`; JSON inválido falla sin tocar el archivo) y se mergea
+  recursivamente sobre el archivo real, preservando las claves que el borrador no
+  menciona. El diff se calcula contra ese resultado mergeado, así lo que se revisa
+  es exactamente lo que se aplica.
+
+Si tocás `staging.rs`, no rompas este flujo — es la razón de ser del proyecto.
+
+**Limitación conocida:** los backups y el `history.jsonl` crecen sin cota. No hay
+retención automática *a propósito*: podar backups sin orfanar entradas revertibles
+del historial requiere una decisión de producto (cuánto historial conservar vs.
+revertibilidad), y una retención ingenua sería un bug de pérdida de datos. Pendiente
+de diseño, no un descuido.
 
 ## Permisos filesystem
 
