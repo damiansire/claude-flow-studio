@@ -121,6 +121,12 @@ h2 {
 .card:hover {
   border-color: var(--accent);
 }
+.card.inert {
+  cursor: default;
+}
+.card.inert:hover {
+  border-color: var(--border);
+}
 .card h3 {
   margin: 0 0 8px;
   font-size: 14.5px;
@@ -224,6 +230,20 @@ th {
 .state.error {
   color: var(--red);
 }
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  grid-column: 1 / -1;
+}
+.empty .hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+}
 
 /* Modal de detalle: se reusa en Fase 6 para el editor */
 .overlay {
@@ -269,9 +289,25 @@ th {
 .modal .body {
   padding: 16px 18px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 .modal .body pre {
   margin: 0;
+}
+.modal-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.diff-add {
+  color: var(--green);
+}
+.diff-del {
+  color: var(--red);
+}
+.diff-hunk {
+  color: var(--muted);
 }
 .editor-textarea {
   width: 100%;

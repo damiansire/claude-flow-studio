@@ -1,5 +1,5 @@
 import { api, type AppliedChange } from "../lib/api";
-import { escapeHtml, stateHtml } from "../lib/render";
+import { emptyHtml, escapeHtml, stateHtml } from "../lib/render";
 
 function entryHtml(a: AppliedChange): string {
   return `
@@ -19,7 +19,7 @@ export async function renderHistorial(container: HTMLElement) {
     container.innerHTML = `
       <h2>Historial</h2>
       <p class="lead">Cambios ya aplicados a archivos reales de <code>~/.claude</code>, más reciente primero. Cada aplicación guardó un backup — revertir restaura ese backup (y registra un nuevo backup del estado actual, por si hace falta deshacer el revert).</p>
-      <div class="grid">${history.map(entryHtml).join("") || stateHtml("Todavía no aplicaste ningún cambio.")}</div>
+      <div class="grid">${history.map(entryHtml).join("") || emptyHtml("Todavía no aplicaste ningún cambio.", "Editá algo en Memoria o Skills y aplicalo para verlo acá.")}</div>
     `;
     container.querySelectorAll<HTMLButtonElement>("[data-revert]").forEach((btn) => {
       btn.addEventListener("click", async () => {

@@ -1,4 +1,22 @@
 import { api } from "./api";
+import { escapeHtml } from "./render";
+
+function diffLineClass(line: string): string | null {
+  if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("@@")) return "diff-hunk";
+  if (line.startsWith("+")) return "diff-add";
+  if (line.startsWith("-")) return "diff-del";
+  return null;
+}
+
+function renderDiffHtml(diff: string): string {
+  return diff
+    .split("\n")
+    .map((line) => {
+      const cls = diffLineClass(line);
+      return cls ? `<span class="${cls}">${escapeHtml(line)}</span>` : escapeHtml(line);
+    })
+    .join("\n");
+}
 
 let overlay: HTMLDivElement;
 let titleEl: HTMLHeadingElement;
@@ -25,6 +43,8 @@ export function mountEditorModal(root: HTMLElement) {
       <div class="body">
         <textarea id="editor-textarea" class="editor-textarea" spellcheck="false"></textarea>
         <pre id="editor-diff" class="hidden"></pre>
+      </div>
+      <div class="modal-footer">
         <div id="editor-status" class="editor-status"></div>
         <div class="editor-actions">
           <button id="editor-stage" class="btn primary">Guardar borrador</button>
@@ -129,7 +149,7 @@ async function onShowDiff() {
   if (!currentStagedId) return;
   try {
     const diff = await api.diffStaged(currentStagedId);
-    diffPre.textContent = diff || "(sin diferencias con el archivo real actual)";
+    diffPre.innerHTML = diff ? renderDiffHtml(diff) : "(sin diferencias con el archivo real actual)";
     diffPre.classList.remove("hidden");
   } catch (err) {
     setStatus(`No se pudo calcular el diff: ${String(err)}`, true);
