@@ -1,3 +1,5 @@
+import { errorMessage } from "./api";
+
 export function escapeHtml(s: string): string {
   const div = document.createElement("div");
   div.textContent = s;
@@ -20,6 +22,6 @@ export async function withState<T>(container: HTMLElement, load: () => Promise<T
     const data = await load();
     container.innerHTML = render(data);
   } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${String(err)}`, true);
+    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
   }
 }

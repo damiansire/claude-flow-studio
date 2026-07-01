@@ -1,4 +1,4 @@
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { stateHtml } from "../lib/render";
 
 export async function renderOverview(container: HTMLElement) {
@@ -29,6 +29,6 @@ export async function renderOverview(container: HTMLElement) {
       <p class="lead">Todo lo que ves acá se puede editar desde la app (memorias, skills, comandos/workflows y config) con staging + revisión: nada se escribe directo a tus archivos reales sin que lo apliques vos.</p>
     `;
   } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${String(err)}`, true);
+    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
   }
 }

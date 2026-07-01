@@ -1,4 +1,4 @@
-import { api, type AppliedChange } from "../lib/api";
+import { api, errorMessage, type AppliedChange } from "../lib/api";
 import { emptyHtml, escapeHtml, stateHtml } from "../lib/render";
 
 function entryHtml(a: AppliedChange): string {
@@ -30,11 +30,11 @@ export async function renderHistorial(container: HTMLElement) {
           await renderHistorial(container);
         } catch (err) {
           btn.disabled = false;
-          btn.textContent = `Error: ${String(err)}`;
+          btn.textContent = `Error: ${errorMessage(err)}`;
         }
       });
     });
   } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${String(err)}`, true);
+    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
   }
 }

@@ -1,4 +1,4 @@
-import { api, type Skill } from "../lib/api";
+import { api, errorMessage, type Skill } from "../lib/api";
 import { openEditor } from "../lib/editor";
 import { emptyHtml, escapeHtml, stateHtml } from "../lib/render";
 
@@ -38,6 +38,6 @@ export async function renderSkills(container: HTMLElement) {
       noResults.classList.toggle("hidden", visible > 0);
     });
   } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${String(err)}`, true);
+    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
   }
 }

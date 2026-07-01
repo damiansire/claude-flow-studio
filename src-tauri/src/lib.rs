@@ -5,6 +5,13 @@ mod paths;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            // Log a stdout (dev) y a un archivo en el dir de logs de la app —
+            // una app que reescribe ~/.claude no puede soportarse a ciegas.
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_memories,

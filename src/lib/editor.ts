@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, errorMessage } from "./api";
 import { escapeHtml } from "./render";
 
 function diffLineClass(line: string): string | null {
@@ -117,7 +117,7 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
       textarea.value = await api.readFileContent(path);
     } catch (err) {
       textarea.value = "";
-      setStatus(`No se pudo leer el archivo: ${String(err)}`, true);
+      setStatus(`No se pudo leer el archivo: ${errorMessage(err)}`, true);
     }
     return;
   }
@@ -135,7 +135,7 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
     }
   } catch (err) {
     textarea.value = "";
-    setStatus(`No se pudo leer el archivo: ${String(err)}`, true);
+    setStatus(`No se pudo leer el archivo: ${errorMessage(err)}`, true);
   }
 }
 
@@ -147,7 +147,7 @@ async function onStage() {
     setStagedControls(true);
     diffPre.classList.add("hidden");
   } catch (err) {
-    setStatus(`No se pudo guardar el borrador: ${String(err)}`, true);
+    setStatus(`No se pudo guardar el borrador: ${errorMessage(err)}`, true);
   }
 }
 
@@ -158,7 +158,7 @@ async function onShowDiff() {
     diffPre.innerHTML = diff ? renderDiffHtml(diff) : "(sin diferencias con el archivo real actual)";
     diffPre.classList.remove("hidden");
   } catch (err) {
-    setStatus(`No se pudo calcular el diff: ${String(err)}`, true);
+    setStatus(`No se pudo calcular el diff: ${errorMessage(err)}`, true);
   }
 }
 
@@ -171,7 +171,7 @@ async function onApply() {
     setStagedControls(false);
     diffPre.classList.add("hidden");
   } catch (err) {
-    setStatus(`No se pudo aplicar: ${String(err)}`, true);
+    setStatus(`No se pudo aplicar: ${errorMessage(err)}`, true);
   }
 }
 
@@ -184,6 +184,6 @@ async function onDiscard() {
     setStagedControls(false);
     diffPre.classList.add("hidden");
   } catch (err) {
-    setStatus(`No se pudo descartar: ${String(err)}`, true);
+    setStatus(`No se pudo descartar: ${errorMessage(err)}`, true);
   }
 }

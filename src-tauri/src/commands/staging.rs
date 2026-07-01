@@ -26,7 +26,12 @@ pub async fn stage_change(
     let target = std::path::PathBuf::from(target_path);
     ensure_within_claude_dir(&dir, &target)?;
     let store = store(&app)?;
-    blocking(move || Ok(store.stage(&target, draft_content)?)).await
+    let target_log = target.display().to_string();
+    log_result(
+        "stage_change",
+        &target_log,
+        blocking(move || Ok(store.stage(&target, draft_content)?)).await,
+    )
 }
 
 #[tauri::command]
@@ -44,13 +49,23 @@ pub async fn diff_staged(app: tauri::AppHandle, id: String) -> Result<String, Ap
 #[tauri::command]
 pub async fn discard_staged(app: tauri::AppHandle, id: String) -> Result<(), AppError> {
     let store = store(&app)?;
-    blocking(move || Ok(store.discard(&id)?)).await
+    let id_log = id.clone();
+    log_result(
+        "discard_staged",
+        &id_log,
+        blocking(move || Ok(store.discard(&id)?)).await,
+    )
 }
 
 #[tauri::command]
 pub async fn apply_staged(app: tauri::AppHandle, id: String) -> Result<AppliedChange, AppError> {
     let store = store(&app)?;
-    blocking(move || Ok(store.apply(&id)?)).await
+    let id_log = id.clone();
+    log_result(
+        "apply_staged",
+        &id_log,
+        blocking(move || Ok(store.apply(&id)?)).await,
+    )
 }
 
 #[tauri::command]
@@ -62,5 +77,21 @@ pub async fn list_history(app: tauri::AppHandle) -> Result<Vec<AppliedChange>, A
 #[tauri::command]
 pub async fn revert_applied(app: tauri::AppHandle, id: String) -> Result<AppliedChange, AppError> {
     let store = store(&app)?;
-    blocking(move || Ok(store.revert(&id)?)).await
+    let id_log = id.clone();
+    log_result(
+        "revert_applied",
+        &id_log,
+        blocking(move || Ok(store.revert(&id)?)).await,
+    )
+}
+
+/// Loguea el resultado de un comando de mutación (éxito con INFO, fallo con
+/// ERROR incluyendo el AppError) y devuelve el resultado sin tocarlo. Es el
+/// único punto donde se deja rastro de qué se intentó tocar en ~/.claude.
+fn log_result<T>(cmd: &str, subject: &str, result: Result<T, AppError>) -> Result<T, AppError> {
+    match &result {
+        Ok(_) => log::info!("{cmd} ok: {subject}"),
+        Err(e) => log::error!("{cmd} falló ({subject}): {e}"),
+    }
+    result
 }

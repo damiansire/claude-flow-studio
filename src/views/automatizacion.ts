@@ -1,4 +1,4 @@
-import { api, type Skill } from "../lib/api";
+import { api, errorMessage, type Skill } from "../lib/api";
 import { openEditor } from "../lib/editor";
 import { escapeHtml, stateHtml } from "../lib/render";
 
@@ -43,6 +43,6 @@ export async function renderAutomatizacion(container: HTMLElement) {
       card.addEventListener("click", () => openEditor(card.dataset.title!, card.dataset.path!, { readOnly: true }));
     });
   } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${String(err)}`, true);
+    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
   }
 }
