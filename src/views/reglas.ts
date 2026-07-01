@@ -1,8 +1,8 @@
 import { api } from "../lib/api";
-import { escapeHtml, withState } from "../lib/render";
+import { escapeHtml, withView } from "../lib/render";
 
 export async function renderReglas(container: HTMLElement) {
-  await withState(
+  await withView(
     container,
     () => api.readClaudeMd(),
     (claudeMd) => `

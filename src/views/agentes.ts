@@ -1,11 +1,13 @@
-import { api, errorMessage, type AgentDef } from "../lib/api";
-import { openEditor } from "../lib/editor";
-import { escapeHtml, stateHtml } from "../lib/render";
+import { api, type AgentDef } from "../lib/api";
+import { wireCards } from "../lib/cards";
+import { escapeHtml, stateHtml, withView } from "../lib/render";
 
+// Card custom (lleva la línea extra de tools), pero emite el mismo contrato
+// data-* que lee `wireCards`, con data-readonly: agentes son solo lectura.
 function agentCard(a: AgentDef): string {
   const tools = a.tools ? `<p><span class="tag">${escapeHtml(a.tools)}</span></p>` : "";
   return `
-    <div class="card" data-path="${escapeHtml(a.path)}" data-title="${escapeHtml(a.name)}">
+    <div class="card" data-path="${escapeHtml(a.path)}" data-title="${escapeHtml(a.name)}" data-readonly="1">
       <h3>🤖 ${escapeHtml(a.name)}</h3>
       <p>${escapeHtml(a.description || "(sin descripción)")}</p>
       ${tools}
@@ -14,10 +16,10 @@ function agentCard(a: AgentDef): string {
 }
 
 export async function renderAgentes(container: HTMLElement) {
-  container.innerHTML = stateHtml("cargando...");
-  try {
-    const agents = await api.listAgents();
-    container.innerHTML = `
+  await withView(
+    container,
+    () => api.listAgents(),
+    (agents) => `
       <h2>Agentes</h2>
       <p class="lead">Subagentes custom en <code>~/.claude/agents</code> — delegan trabajo especializado sin cargar tu contexto principal.</p>
       <div class="grid">${agents.map(agentCard).join("") || stateHtml("No hay agentes custom.")}</div>
@@ -33,11 +35,7 @@ export async function renderAgentes(container: HTMLElement) {
           <tr><td>statusline-setup</td><td>Configura la status line del CLI.</td></tr>
         </tbody>
       </table>
-    `;
-    container.querySelectorAll<HTMLElement>(".card").forEach((card) => {
-      card.addEventListener("click", () => openEditor(card.dataset.title!, card.dataset.path!, { readOnly: true }));
-    });
-  } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
-  }
+    `,
+    (_data, root) => wireCards(root),
+  );
 }

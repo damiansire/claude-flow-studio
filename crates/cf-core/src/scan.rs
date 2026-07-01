@@ -61,36 +61,55 @@ pub fn list_memories(claude_dir: &Path) -> Result<Vec<MemoryEntry>, ScanError> {
         .join("projects")
         .join(path_slug(home_dir))
         .join("memory");
+    let mut out = scan_flat_files(&dir, "md", |path, contents| {
+        if path.file_name().and_then(|f| f.to_str()) == Some("MEMORY.md") {
+            return None; // el índice, no una memoria en sí
+        }
+        let doc = frontmatter::parse(contents);
+        Some(MemoryEntry {
+            name: doc
+                .field("name")
+                .unwrap_or_else(|| stem_or(path, "memoria")),
+            description: doc.field("description").unwrap_or_default(),
+            mem_type: doc.field_path(&["metadata", "type"]),
+            path: path.to_path_buf(),
+        })
+    })?;
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// Escanea los archivos sueltos de extensión `ext` en `dir`, aplicando `mapper`
+/// a cada `(path, contenido)`. El mapper devuelve `None` para saltear un archivo
+/// (p.ej. el índice MEMORY.md). Concentra el patrón read_dir + filtro por
+/// extensión + read + map_err que compartían memorias, agentes, comandos y
+/// workflows. El orden queda a cargo del llamador.
+fn scan_flat_files<T>(
+    dir: &Path,
+    ext: &str,
+    mut mapper: impl FnMut(&Path, &str) -> Option<T>,
+) -> Result<Vec<T>, ScanError> {
     if !dir.is_dir() {
         return Ok(Vec::new());
     }
     let mut out = Vec::new();
-    for entry in std::fs::read_dir(&dir).map_err(|source| ScanError::Io {
-        path: dir.clone(),
+    for entry in std::fs::read_dir(dir).map_err(|source| ScanError::Io {
+        path: dir.to_path_buf(),
         source,
     })? {
         let entry = entry.map_err(|source| ScanError::Io {
-            path: dir.clone(),
+            path: dir.to_path_buf(),
             source,
         })?;
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+        if path.extension().and_then(|e| e.to_str()) != Some(ext) {
             continue;
         }
-        if path.file_name().and_then(|f| f.to_str()) == Some("MEMORY.md") {
-            continue; // el índice, no una memoria en sí
+        let contents = read_to_string(&path)?;
+        if let Some(item) = mapper(&path, &contents) {
+            out.push(item);
         }
-        let doc = frontmatter::parse(&read_to_string(&path)?);
-        out.push(MemoryEntry {
-            name: doc
-                .field("name")
-                .unwrap_or_else(|| stem_or(&path, "memoria")),
-            description: doc.field("description").unwrap_or_default(),
-            mem_type: doc.field_path(&["metadata", "type"]),
-            path,
-        });
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }
 
@@ -143,64 +162,30 @@ fn scan_named_subfolders(dir: &Path, fallback: &str) -> Result<Vec<Skill>, ScanE
 
 /// Agentes: archivos markdown sueltos en `agents/`.
 pub fn list_agents(claude_dir: &Path) -> Result<Vec<AgentDef>, ScanError> {
-    let dir = claude_dir.join("agents");
-    if !dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    let mut out = Vec::new();
-    for entry in std::fs::read_dir(&dir).map_err(|source| ScanError::Io {
-        path: dir.clone(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| ScanError::Io {
-            path: dir.clone(),
-            source,
-        })?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("md") {
-            continue;
-        }
-        let doc = frontmatter::parse(&read_to_string(&path)?);
-        out.push(AgentDef {
-            name: doc
-                .field("name")
-                .unwrap_or_else(|| stem_or(&path, "agente")),
+    let mut out = scan_flat_files(&claude_dir.join("agents"), "md", |path, contents| {
+        let doc = frontmatter::parse(contents);
+        Some(AgentDef {
+            name: doc.field("name").unwrap_or_else(|| stem_or(path, "agente")),
             description: doc.field("description").unwrap_or_default(),
             tools: doc.field("tools"),
-            path,
-        });
-    }
+            path: path.to_path_buf(),
+        })
+    })?;
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }
 
 /// Slash commands: archivos markdown sueltos en `commands/`.
 pub fn list_commands(claude_dir: &Path) -> Result<Vec<SlashCommand>, ScanError> {
-    let dir = claude_dir.join("commands");
-    if !dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    let mut out = Vec::new();
-    for entry in std::fs::read_dir(&dir).map_err(|source| ScanError::Io {
-        path: dir.clone(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| ScanError::Io {
-            path: dir.clone(),
-            source,
-        })?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("md") {
-            continue;
-        }
-        let doc = frontmatter::parse(&read_to_string(&path)?);
-        out.push(SlashCommand {
-            name: stem_or(&path, "comando"),
+    let mut out = scan_flat_files(&claude_dir.join("commands"), "md", |path, contents| {
+        let doc = frontmatter::parse(contents);
+        Some(SlashCommand {
+            name: stem_or(path, "comando"),
             description: doc.field("description"),
             argument_hint: doc.field("argument-hint"),
-            path,
-        });
-    }
+            path: path.to_path_buf(),
+        })
+    })?;
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }
@@ -209,32 +194,15 @@ pub fn list_commands(claude_dir: &Path) -> Result<Vec<SlashCommand>, ScanError> 
 /// sino un `export const meta = {...}` de JS — se extraen los campos con un
 /// parsing best-effort de strings, no un parser de JS real.
 pub fn list_workflows(claude_dir: &Path) -> Result<Vec<Workflow>, ScanError> {
-    let dir = claude_dir.join("workflows");
-    if !dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    let mut out = Vec::new();
-    for entry in std::fs::read_dir(&dir).map_err(|source| ScanError::Io {
-        path: dir.clone(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| ScanError::Io {
-            path: dir.clone(),
-            source,
-        })?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("js") {
-            continue;
-        }
-        let src = read_to_string(&path)?;
-        out.push(Workflow {
-            name: extract_js_string_field(&src, "name")
-                .unwrap_or_else(|| stem_or(&path, "workflow")),
-            description: extract_js_string_field(&src, "description"),
-            when_to_use: extract_js_string_field(&src, "whenToUse"),
-            path,
-        });
-    }
+    let mut out = scan_flat_files(&claude_dir.join("workflows"), "js", |path, contents| {
+        Some(Workflow {
+            name: extract_js_string_field(contents, "name")
+                .unwrap_or_else(|| stem_or(path, "workflow")),
+            description: extract_js_string_field(contents, "description"),
+            when_to_use: extract_js_string_field(contents, "whenToUse"),
+            path: path.to_path_buf(),
+        })
+    })?;
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }

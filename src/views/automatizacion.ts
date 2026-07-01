@@ -1,14 +1,11 @@
-import { api, errorMessage, type Skill } from "../lib/api";
+import { api, type Skill } from "../lib/api";
+import { cardHtml, wireCards } from "../lib/cards";
 import { openEditor } from "../lib/editor";
-import { escapeHtml, stateHtml } from "../lib/render";
+import { escapeHtml, stateHtml, withView } from "../lib/render";
 
 function taskCard(t: Skill): string {
-  return `
-    <div class="card" data-path="${escapeHtml(t.path)}" data-title="${escapeHtml(t.name)}">
-      <h3>⏰ ${escapeHtml(t.name)}</h3>
-      <p>${escapeHtml(t.description || "(sin descripción)")}</p>
-    </div>
-  `;
+  // Tareas programadas: solo lectura.
+  return cardHtml({ icon: "⏰", title: t.name, description: t.description, path: t.path, readOnly: true });
 }
 
 function tagList(items: string[]): string {
@@ -18,10 +15,10 @@ function tagList(items: string[]): string {
 }
 
 export async function renderAutomatizacion(container: HTMLElement) {
-  container.innerHTML = stateHtml("cargando...");
-  try {
-    const [settings, tasks] = await Promise.all([api.readSettingsSummary(), api.listScheduledTasks()]);
-    container.innerHTML = `
+  await withView(
+    container,
+    () => Promise.all([api.readSettingsSummary(), api.listScheduledTasks()]),
+    ([settings, tasks]) => `
       <h2>Automatización</h2>
       <p class="lead">Lo que corre solo, leído en vivo de <code>~/.claude/settings.json</code> y <code>~/.claude/scheduled-tasks</code>.</p>
       <div class="grid">
@@ -34,15 +31,12 @@ export async function renderAutomatizacion(container: HTMLElement) {
       <h3>Tareas programadas <span class="count">(${tasks.length})</span></h3>
       <p class="lead">Solo lectura desde acá.</p>
       <div class="grid">${tasks.map(taskCard).join("") || stateHtml("No hay tareas programadas.")}</div>
-    `;
-    container.querySelector<HTMLElement>("#config-card")!.addEventListener("click", async () => {
-      const path = await api.settingsPath();
-      openEditor("settings.json", path);
-    });
-    container.querySelectorAll<HTMLElement>(".card[data-path]").forEach((card) => {
-      card.addEventListener("click", () => openEditor(card.dataset.title!, card.dataset.path!, { readOnly: true }));
-    });
-  } catch (err) {
-    container.innerHTML = stateHtml(`No se pudo cargar: ${errorMessage(err)}`, true);
-  }
+    `,
+    (_data, root) => {
+      root.querySelector<HTMLElement>("#config-card")!.addEventListener("click", async () => {
+        openEditor("settings.json", await api.settingsPath());
+      });
+      wireCards(root);
+    },
+  );
 }
