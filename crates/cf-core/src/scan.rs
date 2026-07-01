@@ -248,9 +248,26 @@ pub fn read_claude_md(claude_dir: &Path) -> Result<String, ScanError> {
 /// Busca `key: '...'` o `key: "..."` en un source JS y devuelve el contenido
 /// del string. No entiende escapes complejos ni comentarios — alcanza para los
 /// bloques `meta = {...}` que escriben los workflows de este flujo.
+///
+/// Exige que `key` arranque en un límite de identificador (inicio del source o
+/// precedido por algo que no sea alfanumérico/`_`/`$`), así buscar `name` no
+/// matchea dentro de `filename:` ni `username:`.
 fn extract_js_string_field(src: &str, key: &str) -> Option<String> {
     let pattern = format!("{key}:");
-    let idx = src.find(&pattern)?;
+    let mut search_from = 0;
+    let idx = loop {
+        let rel = src[search_from..].find(&pattern)?;
+        let abs = search_from + rel;
+        let at_boundary = src[..abs]
+            .chars()
+            .next_back()
+            .map(|c| !(c.is_alphanumeric() || c == '_' || c == '$'))
+            .unwrap_or(true);
+        if at_boundary {
+            break abs;
+        }
+        search_from = abs + pattern.len();
+    };
     let after = src[idx + pattern.len()..].trim_start();
     let quote = after.chars().next()?;
     if quote != '\'' && quote != '"' {
@@ -335,6 +352,17 @@ mod tests {
     fn missing_field_returns_none() {
         let src = "export const meta = { name: 'x' }";
         assert_eq!(extract_js_string_field(src, "whenToUse"), None);
+    }
+
+    #[test]
+    fn key_match_respects_identifier_boundaries() {
+        // 'name' no debe matchear dentro de 'filename:' — antes devolvía
+        // 'archivo.js' (el valor equivocado) en vez de 'real'.
+        let src = r#"export const meta = { filename: 'archivo.js', name: 'real' }"#;
+        assert_eq!(
+            extract_js_string_field(src, "name").as_deref(),
+            Some("real")
+        );
     }
 
     #[test]

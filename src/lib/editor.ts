@@ -2,7 +2,13 @@ import { api } from "./api";
 import { escapeHtml } from "./render";
 
 function diffLineClass(line: string): string | null {
-  if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("@@")) return "diff-hunk";
+  // Cabecera de hunk.
+  if (line.startsWith("@@")) return "diff-hunk";
+  // Cabeceras de archivo del unified diff: llevan un espacio tras el marcador
+  // ("--- a/x", "+++ b/x"). Una línea de CONTENIDO eliminada/agregada nunca
+  // tiene ese espacio inmediato — por eso el frontmatter "---" borrado (que se
+  // emite como "----") cae a diff-del (rojo) y no a hunk (gris) como antes.
+  if (line.startsWith("--- ") || line.startsWith("+++ ")) return "diff-hunk";
   if (line.startsWith("+")) return "diff-add";
   if (line.startsWith("-")) return "diff-del";
   return null;
