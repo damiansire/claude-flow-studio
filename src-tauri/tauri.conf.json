@@ -18,11 +18,24 @@
       }
     ],
     "security": {
-      "capabilities": ["claude-config-access"]
+      "capabilities": ["claude-config-access"],
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Damian Sire",
+    "copyright": "Copyright © 2026 Damian Sire",
+    "category": "DeveloperTool",
+    "shortDescription": "Ver y editar tu configuración de Claude Code",
+    "longDescription": "App de escritorio para ver y editar de forma segura la configuración de Claude Code en ~/.claude (memoria, skills, comandos, workflows, agentes y settings), con staging + diff + backup antes de aplicar cualquier cambio."
   }
 }

@@ -36,4 +36,22 @@ jobs:
           cargo build
 
       - name: frontend
-        run: npx tsc --noEmit
+        run: |
+          npx tsc --noEmit
+          npm run build
+
+  # Ejercita el empaquetado real (tauri build exige bundle.icon y compila el
+  # bundle) — es caro, así que solo corre en tags de release, no en cada push.
+  bundle:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: tauri build
+        run: npm run tauri build

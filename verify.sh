@@ -18,5 +18,6 @@ cd ..
 
 echo "== frontend =="
 npx tsc --noEmit
+npm run build
 
 echo "TODO VERDE"
