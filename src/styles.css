@@ -1,0 +1,336 @@
+:root {
+  --bg: #0f1115;
+  --bg2: #161922;
+  --card: #1b1f2a;
+  --card2: #20242f;
+  --border: #2a2f3d;
+  --text: #e6e8ee;
+  --muted: #9aa2b1;
+  --accent: #7dd3fc;
+  --accent2: #c4b5fd;
+  --green: #4ade80;
+  --yellow: #facc15;
+  --orange: #fb923c;
+  --red: #f87171;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+* {
+  box-sizing: border-box;
+}
+.hidden {
+  display: none !important;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+}
+#app {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+nav {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+nav h1 {
+  font-size: 15px;
+  margin: 0 0 4px;
+  padding: 0 8px;
+}
+nav .sub {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 8px;
+  margin-bottom: 18px;
+}
+nav button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  font-family: inherit;
+}
+nav button:hover {
+  background: var(--card2);
+  color: var(--text);
+}
+nav button.active {
+  background: linear-gradient(90deg, rgba(125, 211, 252, 0.15), transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+main {
+  flex: 1;
+  padding: 36px 44px;
+  max-width: 1080px;
+}
+section {
+  display: none;
+}
+section.active {
+  display: block;
+}
+h2 {
+  font-size: 22px;
+  margin: 0 0 6px;
+}
+.lead {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 26px;
+  max-width: 720px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card:hover {
+  border-color: var(--accent);
+}
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 14.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  /* Recorta descripciones largas (algunas skills tienen párrafos enteros) —
+     sin esto, una card gigante rompe la alineación de toda la fila del grid. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tag {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--card2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.tag.a {
+  background: rgba(125, 211, 252, 0.12);
+  color: var(--accent);
+  border-color: rgba(125, 211, 252, 0.3);
+}
+.tag.g {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.3);
+}
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--card2);
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--accent);
+}
+pre {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #d1d5db;
+}
+.search {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 16px;
+  font-family: inherit;
+}
+.count {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.state {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 0;
+}
+.state.error {
+  color: var(--red);
+}
+
+/* Modal de detalle: se reusa en Fase 6 para el editor */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.overlay.hidden {
+  display: none;
+}
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: min(760px, 90vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modal header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.modal header button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+.modal .body {
+  padding: 16px 18px;
+  overflow-y: auto;
+}
+.modal .body pre {
+  margin: 0;
+}
+.editor-textarea {
+  width: 100%;
+  min-height: 40vh;
+  resize: vertical;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.editor-status {
+  min-height: 18px;
+  margin: 10px 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.editor-status.error {
+  color: var(--red);
+}
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.btn.primary {
+  background: rgba(125, 211, 252, 0.14);
+  border-color: rgba(125, 211, 252, 0.4);
+  color: var(--accent);
+}
+.btn.danger {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: var(--red);
+}
+footer {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
