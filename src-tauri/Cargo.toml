@@ -1,0 +1,28 @@
+[package]
+name = "claude-flow-studio"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "claude_flow_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+cf-core = { path = "../crates/cf-core" }
+
+[dev-dependencies]
+tempfile = "3"
+
+# Cargo.toml vacío de [workspace] a propósito: desacopla src-tauri del workspace
+# raíz (patrón de filo-video-editor) para que `cargo test -p cf-core` no tenga
+# que compilar Tauri/WebView.
+[workspace]

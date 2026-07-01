@@ -1,0 +1,24 @@
+{
+  "identifier": "claude-config-access",
+  "description": "Acceso de lectura/escritura scoped a ~/.claude — principio de mínimo privilegio, nada fuera de esa carpeta.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$HOME/.claude/**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "$HOME/.claude/**" }]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "$HOME/.claude/**" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$HOME/.claude/**" }]
+    }
+  ]
+}
