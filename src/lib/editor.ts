@@ -36,12 +36,20 @@ let discardBtn: HTMLButtonElement;
 
 let currentPath = "";
 let currentStagedId: string | null = null;
+/** El elemento que tenía el foco al abrir el modal, para devolvérselo al cerrar. */
+let lastFocused: HTMLElement | null = null;
+
+/** Notifica que se tocó un archivo real de ~/.claude, para que la vista activa
+ *  se refresque (contadores, listas, historial). Lo escucha `main.ts`. */
+function notifyMutated() {
+  document.dispatchEvent(new CustomEvent("cf:mutated"));
+}
 
 export function mountEditorModal(root: HTMLElement) {
   overlay = document.createElement("div");
   overlay.className = "overlay hidden";
   overlay.innerHTML = `
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
       <header>
         <h3 id="editor-title"></h3>
         <button id="editor-close" aria-label="Cerrar">&times;</button>
@@ -76,6 +84,7 @@ export function mountEditorModal(root: HTMLElement) {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeEditor();
   });
+  overlay.addEventListener("keydown", onKeydown);
 
   stageBtn.addEventListener("click", onStage);
   diffBtn.addEventListener("click", onShowDiff);
@@ -83,8 +92,33 @@ export function mountEditorModal(root: HTMLElement) {
   discardBtn.addEventListener("click", onDiscard);
 }
 
+/** Escape cierra; Tab queda atrapado dentro del modal (focus trap) para que el
+ *  teclado no se escape a los tabs de atrás mientras el diálogo está abierto. */
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape") {
+    closeEditor();
+    return;
+  }
+  if (e.key !== "Tab") return;
+  const focusables = Array.from(
+    overlay.querySelectorAll<HTMLElement>("button, textarea, [href], [tabindex]:not([tabindex='-1'])"),
+  ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 function closeEditor() {
   overlay.classList.add("hidden");
+  lastFocused?.focus();
+  lastFocused = null;
 }
 
 function setStatus(text: string, isError = false) {
@@ -103,6 +137,7 @@ function setStagedControls(hasStagedChange: boolean) {
 export async function openEditor(title: string, path: string, opts: { readOnly?: boolean } = {}) {
   currentPath = path;
   currentStagedId = null;
+  lastFocused = document.activeElement as HTMLElement | null;
   titleEl.textContent = opts.readOnly ? `${title} (solo lectura)` : title;
   textarea.value = "cargando...";
   textarea.readOnly = Boolean(opts.readOnly);
@@ -111,6 +146,7 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
   setStatus("");
   setStagedControls(false);
   overlay.classList.remove("hidden");
+  textarea.focus();
 
   if (opts.readOnly) {
     try {
@@ -170,6 +206,7 @@ async function onApply() {
     currentStagedId = null;
     setStagedControls(false);
     diffPre.classList.add("hidden");
+    notifyMutated();
   } catch (err) {
     setStatus(`No se pudo aplicar: ${errorMessage(err)}`, true);
   }
@@ -183,6 +220,7 @@ async function onDiscard() {
     currentStagedId = null;
     setStagedControls(false);
     diffPre.classList.add("hidden");
+    notifyMutated();
   } catch (err) {
     setStatus(`No se pudo descartar: ${errorMessage(err)}`, true);
   }
