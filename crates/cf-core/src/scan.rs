@@ -35,13 +35,31 @@ fn stem_or(path: &Path, fallback: &str) -> String {
         .to_string()
 }
 
-/// Memorias del "chat global" (`projects/C--Users-tester/memory/`), que es lo
-/// que hoy usa este flujo. Otros proyectos tienen su propia carpeta de memoria
-/// bajo `projects/<slug>/memory/`, fuera de alcance de esta función.
+/// Sanitiza un path absoluto al mismo slug que usa Claude Code para nombrar
+/// `projects/<slug>/`: cada separador de carpeta y `:` se reemplaza por `-`.
+/// Ej. `C:\Users\tester` → `C--Users-tester`.
+pub fn path_slug(path: &Path) -> String {
+    path.to_string_lossy()
+        .chars()
+        .map(|c| {
+            if c == '\\' || c == '/' || c == ':' {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+/// Memorias del "chat global" (`projects/<slug-del-home>/memory/`) — la sesión
+/// que corre con el home dir como cwd, que es lo que hoy usa este flujo. Otros
+/// proyectos tienen su propia carpeta de memoria bajo `projects/<slug>/memory/`,
+/// fuera de alcance de esta función.
 pub fn list_memories(claude_dir: &Path) -> Result<Vec<MemoryEntry>, ScanError> {
+    let home_dir = claude_dir.parent().unwrap_or(claude_dir);
     let dir = claude_dir
         .join("projects")
-        .join("C--Users-tester")
+        .join(path_slug(home_dir))
         .join("memory");
     if !dir.is_dir() {
         return Ok(Vec::new());
@@ -317,5 +335,21 @@ mod tests {
     fn missing_field_returns_none() {
         let src = "export const meta = { name: 'x' }";
         assert_eq!(extract_js_string_field(src, "whenToUse"), None);
+    }
+
+    #[test]
+    fn path_slug_replaces_separators_and_colon() {
+        assert_eq!(path_slug(Path::new("C:\\Users\\tester")), "C--Users-tester");
+        assert_eq!(
+            path_slug(Path::new(
+                "C:\\Users\\tester\\Documents\\claude-flow-studio"
+            )),
+            "C--Users-tester-Documents-claude-flow-studio"
+        );
+    }
+
+    #[test]
+    fn path_slug_replaces_unix_separators_too() {
+        assert_eq!(path_slug(Path::new("/home/damian")), "-home-damian");
     }
 }

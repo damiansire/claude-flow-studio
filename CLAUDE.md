@@ -7,9 +7,7 @@ de este repo.
 ## Qué es
 
 App de escritorio (Tauri v2 + Rust) para ver y editar la configuración de Claude Code
-(`~/.claude`): memoria, skills, comandos, workflows y settings. Nace del plan en
-`C:\Users\tester\.claude\plans\swift-watching-muffin.md` — ese archivo tiene el
-contexto completo y las fases.
+(`~/.claude`): memoria, skills, comandos, workflows y settings.
 
 ## Límite de crates (no lo cruces)
 
@@ -28,8 +26,7 @@ Nunca se escribe directo a un archivo real de `~/.claude`. Todo cambio pasa por:
 borrador (en el directorio de datos de la app, no en `~/.claude`) → diff contra el
 archivo real → "Aplicar" (con backup timestamped) o "Descartar". `settings.json` se
 parchea por clave (`serde_json::Value`), nunca se reescribe entero. Si tocás
-`staging.rs`, no rompas este flujo — es la razón de ser del proyecto (ver el plan
-para el porqué).
+`staging.rs`, no rompas este flujo — es la razón de ser del proyecto.
 
 ## Permisos filesystem
 

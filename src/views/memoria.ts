@@ -18,7 +18,7 @@ export async function renderMemoria(container: HTMLElement) {
     const memories = await api.listMemories();
     container.innerHTML = `
       <h2>Memoria <span class="count">(${memories.length})</span></h2>
-      <p class="lead">Entradas de <code>~/.claude/projects/C--Users-tester/memory</code> — contexto que persiste entre conversaciones.</p>
+      <p class="lead">Entradas del "chat global" (la sesión que corre desde tu home dir) en <code>~/.claude/projects/&lt;tu-home-sanitizado&gt;/memory</code> — contexto que persiste entre conversaciones.</p>
       <div class="grid">${memories.map(cardHtml).join("") || stateHtml("No hay memorias todavía.")}</div>
     `;
     container.querySelectorAll<HTMLElement>(".card").forEach((card) => {

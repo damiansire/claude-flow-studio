@@ -9,7 +9,11 @@ fn fake_claude_dir() -> tempfile::TempDir {
     let root = tempdir().unwrap();
     let base = root.path();
 
-    let memory_dir = base.join("projects").join("C--Users-tester").join("memory");
+    // `list_memories` resuelve la carpeta del "chat global" sanitizando el
+    // directorio padre de `claude_dir` (el home dir simulado) — reproducimos
+    // el mismo cálculo acá en vez de hardcodear el slug de una máquina puntual.
+    let home_slug = scan::path_slug(base.parent().unwrap());
+    let memory_dir = base.join("projects").join(home_slug).join("memory");
     fs::create_dir_all(&memory_dir).unwrap();
     fs::write(memory_dir.join("MEMORY.md"), "# Memory index\n").unwrap();
     fs::write(
