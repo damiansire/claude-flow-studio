@@ -6,3 +6,6 @@ dist
 .vite
 *.log
 .DS_Store
+
+# Config local de Claude Code (permisos por máquina, no compartible)
+.claude/settings.local.json
