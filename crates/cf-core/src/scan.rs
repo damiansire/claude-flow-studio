@@ -37,7 +37,7 @@ fn stem_or(path: &Path, fallback: &str) -> String {
 
 /// Sanitiza un path absoluto al mismo slug que usa Claude Code para nombrar
 /// `projects/<slug>/`: cada separador de carpeta y `:` se reemplaza por `-`.
-/// Ej. `C:\Users\tester` → `C--Users-tester`.
+/// Ej. `C:\Users\me` → `C--Users-me`.
 pub fn path_slug(path: &Path) -> String {
     path.to_string_lossy()
         .chars()
@@ -335,17 +335,15 @@ mod tests {
 
     #[test]
     fn path_slug_replaces_separators_and_colon() {
-        assert_eq!(path_slug(Path::new("C:\\Users\\tester")), "C--Users-tester");
+        assert_eq!(path_slug(Path::new("C:\\Users\\me")), "C--Users-me");
         assert_eq!(
-            path_slug(Path::new(
-                "C:\\Users\\tester\\Documents\\claude-flow-studio"
-            )),
-            "C--Users-tester-Documents-claude-flow-studio"
+            path_slug(Path::new("C:\\Users\\me\\Documents\\claude-flow-studio")),
+            "C--Users-me-Documents-claude-flow-studio"
         );
     }
 
     #[test]
     fn path_slug_replaces_unix_separators_too() {
-        assert_eq!(path_slug(Path::new("/home/damian")), "-home-damian");
+        assert_eq!(path_slug(Path::new("/home/user")), "-home-user");
     }
 }

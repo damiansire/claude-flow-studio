@@ -1,0 +1,9 @@
+# Line endings normalizados a LF en el repo y en el working tree, en todas las
+# plataformas. Sin esto, autocrlf=true en Windows deja CRLF y `cargo fmt --check`
+# (newline_style = "Unix") falla en local y en el CI de windows-latest.
+* text=auto eol=lf
+
+# Binarios: nunca tocar sus bytes.
+*.png binary
+*.ico binary
+*.icns binary
