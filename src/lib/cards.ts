@@ -31,8 +31,19 @@ export function cardHtml(c: CardData): string {
  *  repetir el loop con `!` en cada vista. */
 export function wireCards(container: HTMLElement) {
   container.querySelectorAll<HTMLElement>(".card[data-path][data-title]").forEach((card) => {
-    card.addEventListener("click", () =>
-      openEditor(card.dataset.title!, card.dataset.path!, { readOnly: card.dataset.readonly === "1" }),
-    );
+    // Operable por teclado: sin esto (div + solo click) un usuario de teclado
+    // no puede abrir NINGÚN editor, y el foco no vuelve a la card al cerrar el
+    // modal. role=button + tabindex + Enter/Espacio la hacen un botón real.
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    const open = () =>
+      openEditor(card.dataset.title!, card.dataset.path!, { readOnly: card.dataset.readonly === "1" });
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    });
   });
 }

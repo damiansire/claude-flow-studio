@@ -33,8 +33,18 @@ export async function renderAutomatizacion(container: HTMLElement) {
       <div class="grid">${tasks.map(taskCard).join("") || stateHtml("No hay tareas programadas.")}</div>
     `,
     (_data, root) => {
-      root.querySelector<HTMLElement>("#config-card")!.addEventListener("click", async () => {
-        openEditor("settings.json", await api.settingsPath());
+      // Config abre settings.json por un camino propio (necesita settingsPath()),
+      // así que no pasa por wireCards — pero igual debe ser operable por teclado.
+      const configCard = root.querySelector<HTMLElement>("#config-card")!;
+      configCard.setAttribute("role", "button");
+      configCard.tabIndex = 0;
+      const openConfig = async () => openEditor("settings.json", await api.settingsPath());
+      configCard.addEventListener("click", openConfig);
+      configCard.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          void openConfig();
+        }
       });
       wireCards(root);
     },

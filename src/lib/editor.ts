@@ -117,7 +117,14 @@ function onKeydown(e: KeyboardEvent) {
 
 function closeEditor() {
   overlay.classList.add("hidden");
-  lastFocused?.focus();
+  // Devolver el foco al abridor. Si aplicar/descartar re-renderizó la vista, la
+  // card original quedó huérfana (isConnected=false); en ese caso caemos al
+  // panel activo en vez de dejar el foco en <body>.
+  if (lastFocused?.isConnected) {
+    lastFocused.focus();
+  } else {
+    document.querySelector<HTMLElement>("#section-active")?.focus();
+  }
   lastFocused = null;
 }
 
@@ -206,6 +213,9 @@ async function onApply() {
     currentStagedId = null;
     setStagedControls(false);
     diffPre.classList.add("hidden");
+    // El botón que tenía el foco se acaba de deshabilitar; sin esto el foco cae
+    // al <body> (fuera del overlay) y Escape/focus-trap dejan de funcionar.
+    textarea.focus();
     notifyMutated();
   } catch (err) {
     setStatus(`No se pudo aplicar: ${errorMessage(err)}`, true);
@@ -220,6 +230,8 @@ async function onDiscard() {
     currentStagedId = null;
     setStagedControls(false);
     diffPre.classList.add("hidden");
+    // Ver nota en onApply: reenfocar para no perder el foco fuera del modal.
+    textarea.focus();
     notifyMutated();
   } catch (err) {
     setStatus(`No se pudo descartar: ${errorMessage(err)}`, true);
