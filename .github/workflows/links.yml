@@ -1,0 +1,30 @@
+name: Links
+
+# Chequea que los links y badges del README (y demás .md) resuelvan.
+# Previene el drift de docs: un link o badge muerto rompe el build.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  # Los links externos se pudren solos con el tiempo (dominios que caen),
+  # así que además corre semanal para detectarlo sin esperar a un commit.
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Link Checker
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --exclude-path node_modules
+            --exclude-path target
+            --exclude-path dist
+            './README.md'
+            './CLAUDE.md'
+          fail: true

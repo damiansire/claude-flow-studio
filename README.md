@@ -1,5 +1,8 @@
 # claude-flow-studio
 
+[![CI](https://github.com/damiansire/claude-flow-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/damiansire/claude-flow-studio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 App de escritorio (Tauri v2 + Rust) para **ver y editar tu configuración de
 Claude Code** (`~/.claude`): memoria, skills, comandos, workflows, agentes y
 `settings.json`. Todo cambio pasa por **staging con revisión** — se guarda un
