@@ -83,6 +83,32 @@ cargo test -p cf-core   # tests de dominio, sin compilar Tauri
 ./verify.sh             # el gate completo (fmt + clippy + test + build + tsc), igual que CI
 ```
 
+## Qué corre en CI
+
+Generado a partir de los workflows reales — si esta lista queda desactualizada
+es porque `.github/workflows/*.yml` cambió y esto no se actualizó con eso.
+
+**`ci.yml`** (push a `main`/`master` y todo PR):
+
+- Job **`verify`** (`windows-latest` — hace falta MSVC + WebView2 para linkear
+  el crate de Tauri):
+  1. `cargo fmt --check` + `cargo clippy --workspace --all-targets -- -D
+     warnings` + `cargo test --workspace` sobre el workspace raíz (`cf-core`).
+  2. Lo mismo (`fmt --check`, `clippy --all-targets -- -D warnings`, `test`,
+     `build`) sobre `src-tauri`, que tiene su propio `[workspace]`.
+  3. Frontend: `npx tsc --noEmit` + `npm run build`.
+  - `RUSTFLAGS: -D warnings` a nivel de job: cualquier warning del compilador
+    (no solo de clippy) rompe el build.
+- Job **`bundle`** (solo en tags `v*`, `windows-latest`): `npm run tauri
+  build` — ejercita el empaquetado real (icon + bundle), deliberadamente no
+  corre en cada push por ser caro.
+
+**`links.yml`** (push, PR, y cron semanal los lunes 06:00 UTC): corre
+[`lychee`](https://github.com/lycheeverse/lychee-action) sobre `README.md` y
+`CLAUDE.md` para detectar links/badges rotos — incluye el cron porque los
+links externos se pudren solos con el tiempo, no solo cuando alguien edita el
+doc.
+
 ## Estado
 
 Funcional end-to-end: dashboard en vivo (visión general, reglas, memoria,

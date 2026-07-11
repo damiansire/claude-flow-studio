@@ -1,6 +1,11 @@
-mod commands;
-mod error;
-mod paths;
+// `pub` (no `mod`) a propósito: los tests de integración en `tests/` viven en
+// un crate aparte y necesitan llegar a las funciones `_impl` de
+// `commands::staging` para ejercitar el I/O real de apply/backup/revert sin
+// un `AppHandle` de verdad (que requiere una ventana). Ver
+// `src-tauri/tests/staging_integration.rs`.
+pub mod commands;
+pub mod error;
+pub mod paths;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
