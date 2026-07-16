@@ -53,23 +53,48 @@ camino es:
 4. **`list_history` / `revert_applied`** — deshacer cualquier cambio aplicado,
    restaurando su backup.
 
-Detalles que son **contrato, no aspiración** (hay tests que fallan si se rompen):
+### Garantías con test (contrato)
 
-- **El boundary `~/.claude` se revalida en TODO camino de escritura** (no solo
-  al crear el borrador): `apply`/`revert` rechazan fail-closed cualquier path
-  fuera del directorio antes de escribir — defensa en profundidad ante un
-  borrador o historial adulterado.
-- **`settings.json` (y todo `.json`) se parchea por clave**: se parsea el
-  borrador (JSON inválido falla sin tocar el archivo) y se mergea recursivamente
-  sobre el real, **preservando las claves que el borrador no menciona**. El diff
-  se calcula contra ese resultado, así lo que revisás es lo que se aplica.
+Cada garantía de esta tabla tiene tests con nombre 1:1 que fallan si se rompe.
+Viven en tres lugares: el módulo de dominio (`crates/cf-core/src/staging.rs`,
+mod `tests`), la capa de comandos con I/O real
+(`src-tauri/tests/staging_integration.rs`) y la configuración declarativa de
+seguridad (`src-tauri/tests/config_contract.rs`). Se corren con
+`cargo test -p cf-core` (dominio) y `cargo test` dentro de `src-tauri`
+(comandos + config); CI ejecuta ambos en cada push y PR.
+
+| Garantía | Test(s) que fallan si se rompe |
+|---|---|
+| `stage_change` nunca escribe el archivo real | `stage_does_not_touch_the_real_file` (cf-core) · `stage_change_does_not_touch_the_real_file_until_apply` (staging_integration) |
+| `apply` hace backup del original ANTES de sobreescribir | `apply_writes_real_file_backs_up_original_and_clears_draft`, `apply_on_a_new_file_backs_up_as_empty` (cf-core) · `apply_staged_backs_up_before_writing_and_the_backup_predates_the_new_content` (staging_integration) |
+| `discard` tira el borrador sin tocar nada | `discard_removes_the_draft_and_leaves_real_file_untouched` (cf-core) · `discard_staged_leaves_the_real_file_untouched` (staging_integration) |
+| `revert` restaura el backup y queda registrado en el historial | `revert_restores_the_backup_and_logs_a_new_history_entry` (cf-core) · `a_corrupted_target_after_apply_is_recoverable_via_revert_from_backup` (staging_integration) |
+| El boundary `~/.claude` se revalida en TODO camino de escritura, fail-closed, incluso con borrador/historial adulterado | `apply_rejects_a_target_outside_the_boundary`, `revert_rejects_a_target_outside_the_boundary`, `ensure_within_rejects_escapes_and_accepts_inside` (cf-core) · `stage_change_rejects_a_target_outside_claude_dir`, `apply_staged_rejects_a_tampered_draft_pointing_outside_the_boundary` (staging_integration) |
+| `settings.json` (y todo `.json`) se parchea por clave: merge recursivo que preserva las claves que el borrador no menciona | `applying_settings_json_preserves_keys_the_draft_did_not_mention` (cf-core) · `applying_settings_json_preserves_a_concurrent_external_edit_the_draft_did_not_touch` (staging_integration) |
+| JSON inválido en el borrador falla sin tocar el archivo real | `applying_malformed_settings_json_fails_closed_and_leaves_the_file_intact` (cf-core) |
+| El diff que revisás es exactamente lo que `apply` escribe (se calcula contra el resultado mergeado y contra el disco actual, no contra una foto vieja) | `diff_of_settings_json_matches_the_merged_content_that_apply_writes`, `diff_reflects_current_disk_state_not_just_the_draft` (cf-core) |
+| Capability de filesystem scoped a `$HOME/.claude/**` (mínimo privilegio, sin `fs:default`) y cableada en `tauri.conf.json` | `fs_capability_scopes_every_permission_to_claude_dir` (config_contract) |
+| CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-eval`, `object-src`/`base-uri`/`frame-ancestors 'none'`) | `production_csp_is_restrictive` (config_contract) |
+
+Comportamiento ante edición externa concurrente (documentado por test, no
+aspiracional): en archivos planos el borrador gana pero la edición externa queda
+recuperable en el backup
+(`applying_a_plain_file_overwrites_a_concurrent_external_edit_but_it_stays_recoverable_in_the_backup`);
+en `.json` una clave agregada por fuera que el borrador no menciona sobrevive al
+merge (`applying_settings_json_preserves_a_concurrent_external_edit_the_draft_did_not_touch`).
+
+### Defensas sin test dedicado (todavía)
+
+Estas existen en el código pero hoy no tienen un test que falle si se rompen,
+así que se listan como diseño, no como contrato:
+
+- Escapado de HTML en los sinks del frontend (centralizado en
+  `src/lib/render.ts`); no hay runner de tests de frontend todavía.
+- Logging de toda mutación (intento y resultado) a un archivo en el dir de la
+  app (`log_result` en `src-tauri/src/commands/staging.rs`).
 
 Alcance editable: **memorias, skills, comandos/workflows y `settings.json`**.
 Agentes y tareas programadas se muestran, pero de solo lectura.
-
-Además: capability de filesystem scoped a `$HOME/.claude/**` (mínimo
-privilegio), CSP restrictiva en producción, escapado de HTML en todos los sinks,
-y logging de las mutaciones a un archivo en el dir de la app.
 
 ## Desarrollo
 
