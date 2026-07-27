@@ -1,5 +1,5 @@
 import { api } from "../lib/api";
-import { withView } from "../lib/render";
+import { escapeHtml, withView } from "../lib/render";
 
 export async function renderOverview(container: HTMLElement) {
   await withView(
@@ -24,7 +24,7 @@ export async function renderOverview(container: HTMLElement) {
         <div class="card inert"><h3>⏱️ Tareas programadas <span class="count">(${tasks.length})</span></h3><p>En <code>~/.claude/scheduled-tasks</code>.</p></div>
         <div class="card inert"><h3>⚡ Comandos <span class="count">(${commands.length})</span></h3><p>Slash commands en <code>~/.claude/commands</code>.</p></div>
         <div class="card inert"><h3>🔀 Workflows <span class="count">(${workflows.length})</span></h3><p>Scripts en <code>~/.claude/workflows</code>.</p></div>
-        <div class="card inert"><h3>⚙️ Config</h3><p>Modelo <code>${settings.model ?? "?"}</code> · tema <code>${settings.theme ?? "?"}</code> · ${settings.permissions_allow.length} permisos allowlist · ${settings.hooks_events.length} hooks · ${settings.enabled_plugins.length} plugins.</p></div>
+        <div class="card inert"><h3>⚙️ Config</h3><p>Modelo <code>${escapeHtml(settings.model ?? "?")}</code> · tema <code>${escapeHtml(settings.theme ?? "?")}</code> · ${settings.permissions_allow.length} permisos allowlist · ${settings.hooks_events.length} hooks · ${settings.enabled_plugins.length} plugins.</p></div>
       </div>
       <p class="lead">Todo lo que ves acá se puede editar desde la app (memorias, skills, comandos/workflows y config) con staging + revisión: nada se escribe directo a tus archivos reales sin que lo apliques vos.</p>
     `,

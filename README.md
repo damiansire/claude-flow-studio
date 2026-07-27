@@ -60,7 +60,8 @@ Viven en tres lugares: el módulo de dominio (`crates/cf-core/src/staging.rs`,
 mod `tests`), la capa de comandos con I/O real
 (`src-tauri/tests/staging_integration.rs`) y la configuración declarativa de
 seguridad (`src-tauri/tests/config_contract.rs`). Se corren con
-`cargo test -p cf-core` (dominio) y `cargo test` dentro de `src-tauri`
+`cargo test -p cf-core` (dominio), `cargo test` dentro de `src-tauri`
+y `npm test` (frontend)
 (comandos + config); CI ejecuta ambos en cada push y PR.
 
 | Garantía | Test(s) que fallan si se rompe |
@@ -80,6 +81,8 @@ seguridad (`src-tauri/tests/config_contract.rs`). Se corren con
 | Los caminos de LECTURA degradan en vez de romper: basura en el staging dir o una línea corrupta en `history.jsonl` no inutilizan borradores, historial ni revert | `an_unexpected_file_in_the_staging_dir_does_not_break_listing_or_staging`, `a_corrupt_line_in_the_history_does_not_kill_the_rest_of_the_log` (cf-core) |
 | Una instalación sin `~/.claude/CLAUDE.md` muestra estado vacío, no un errno del SO | `read_claude_md_on_a_fresh_install_returns_empty_not_an_error` (scan_integration) |
 | `read_file_content` (el único comando que recibe un path del IPC) rechaza todo path fuera de `~/.claude` y devuelve error tipado si el archivo desapareció | `rejects_a_relative_dotdot_escape_without_reading_anything`, `rejects_an_absolute_path_outside_the_claude_dir`, `rejects_a_dotdot_behind_a_directory_that_does_not_exist`, `a_file_deleted_between_listing_and_opening_returns_a_typed_io_error` (read_integration) |
+| El escapado del frontend aguanta contexto de ATRIBUTO: un `name:` de frontmatter con comilla doble no inyecta atributos ni anula `data-readonly` | `render.test.ts` (vitest + jsdom, `npm test`) |
+| La vista general renderiza `model`/`theme` de `settings.json` como texto, no como markup | `overview.test.ts` (vitest + jsdom) |
 | CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-eval`, `object-src`/`base-uri`/`frame-ancestors 'none'`) | `production_csp_is_restrictive` (config_contract) |
 
 Comportamiento ante edición externa concurrente (documentado por test, no
@@ -94,8 +97,6 @@ merge (`applying_settings_json_preserves_a_concurrent_external_edit_the_draft_di
 Estas existen en el código pero hoy no tienen un test que falle si se rompen,
 así que se listan como diseño, no como contrato:
 
-- Escapado de HTML en los sinks del frontend (centralizado en
-  `src/lib/render.ts`); no hay runner de tests de frontend todavía.
 - Logging de toda mutación (intento y resultado) a un archivo en el dir de la
   app (`log_result` en `src-tauri/src/commands/staging.rs`).
 
@@ -111,7 +112,8 @@ Build Tools de Visual Studio (MSVC) + el WebView2 Runtime.
 npm install
 npm run tauri dev       # levanta Vite (1420) + la ventana
 cargo test -p cf-core   # tests de dominio, sin compilar Tauri
-./verify.sh             # el gate completo (fmt + clippy + test + build + tsc), igual que CI
+npm test                # tests de frontend (vitest + jsdom)
+npm run verify          # el gate completo (fmt + clippy + cargo test + tsc + vitest + build), igual que CI
 ```
 
 ## Qué corre en CI

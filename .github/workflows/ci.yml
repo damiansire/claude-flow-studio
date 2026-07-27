@@ -35,9 +35,13 @@ jobs:
           cargo test
           cargo build
 
+      # `npm run typecheck`, no `npx tsc`: sin typescript instalado npx sale 0
+      # sin typechequear una linea (fallo enmascarado). Mismos comandos que
+      # verify.sh.
       - name: frontend
         run: |
-          npx tsc --noEmit
+          npm run typecheck
+          npm test
           npm run build
 
   # Ejercita el empaquetado real (tauri build exige bundle.icon y compila el

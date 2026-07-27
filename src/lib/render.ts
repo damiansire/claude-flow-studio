@@ -1,9 +1,24 @@
 import { errorMessage } from "./api";
 
+/** Escapa una string para interpolarla en HTML, tanto en contexto de TEXTO como
+ *  dentro de un valor de atributo entre comillas.
+ *
+ *  La implementación anterior (`div.textContent = s; return div.innerHTML`) solo
+ *  escapaba `&`, `<` y `>`: por spec, la serialización de un nodo de texto deja
+ *  la comilla doble intacta. Como la salida se usa dentro de atributos
+ *  (`data-path="${escapeHtml(...)}"` en cards.ts, agentes.ts e historial.ts) y
+ *  esos valores vienen de `~/.claude` (el `name:` del frontmatter de una skill
+ *  instalada, un path del filesystem), un `name: x" data-readonly="0` cerraba el
+ *  atributo e inyectaba atributos propios: por la regla first-wins del parser
+ *  ganaba sobre el `data-readonly="1"` literal y convertía en editable una card
+ *  declarada solo-lectura. Se reemplazan los cinco caracteres a mano. */
 export function escapeHtml(s: string): string {
-  const div = document.createElement("div");
-  div.textContent = s;
-  return div.innerHTML;
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function stateHtml(text: string, isError = false): string {

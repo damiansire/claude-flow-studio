@@ -21,6 +21,7 @@ echo "== frontend =="
 # sin typechequear nada (fallo enmascarado). El script resuelve el binario local
 # o falla ruidoso.
 npm run typecheck
+npm test
 npm run build
 
 echo "TODO VERDE"
