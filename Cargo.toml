@@ -43,6 +43,9 @@ serde_json = "1"
 thiserror = "1"
 similar = "2"
 chrono = { version = "0.4", features = ["serde"] }
+# Facade de logging: los caminos de LECTURA saltean entradas corruptas en vez de
+# abortar, pero nada se traga en silencio.
+log = "0.4"
 
 [profile.release]
 lto = true

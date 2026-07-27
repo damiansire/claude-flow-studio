@@ -232,6 +232,14 @@ impl StagingStore {
         }
     }
 
+    /// Borradores pendientes, más viejos primero.
+    ///
+    /// Tolerante a basura: un subdirectorio, un `Thumbs.db`, un `.tmp` o un
+    /// `.json` a medio escribir se saltean con un `warn!`, no abortan la
+    /// función. Antes cualquiera de esos rompía `list()` entero, y como `stage`
+    /// llama a `list()` para deduplicar, un archivo espurio en el directorio de
+    /// staging dejaba a la app sin poder guardar NINGÚN borrador. La postura
+    /// fail-closed corresponde a los caminos de ESCRITURA, no a los de listado.
     pub fn list(&self) -> Result<Vec<StagedChange>, StagingError> {
         if !self.staging_dir.is_dir() {
             return Ok(Vec::new());
@@ -245,11 +253,21 @@ impl StagingStore {
                 path: self.staging_dir.clone(),
                 source,
             })?;
-            let raw = fs::read_to_string(entry.path()).map_err(|source| StagingError::Io {
-                path: entry.path(),
-                source,
-            })?;
-            out.push(serde_json::from_str(&raw)?);
+            let path = entry.path();
+            if !path.is_file() || path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            let raw = match fs::read_to_string(&path) {
+                Ok(raw) => raw,
+                Err(e) => {
+                    log::warn!("borrador ilegible, se saltea: {} ({e})", path.display());
+                    continue;
+                }
+            };
+            match serde_json::from_str::<StagedChange>(&raw) {
+                Ok(change) => out.push(change),
+                Err(e) => log::warn!("borrador corrupto, se saltea: {} ({e})", path.display()),
+            }
         }
         out.sort_by(|a: &StagedChange, b: &StagedChange| a.created_at.cmp(&b.created_at));
         Ok(out)
@@ -360,6 +378,11 @@ impl StagingStore {
     }
 
     /// Historial de cambios aplicados, más reciente primero.
+    ///
+    /// Cada línea es autocontenida, así que una línea corrupta (p.ej. un append
+    /// interrumpido) se saltea con `warn!` en vez de propagar: antes una sola
+    /// línea truncada inutilizaba la pestaña Historial y TODOS los revert de
+    /// forma permanente, sin ninguna vía de recuperación desde la UI.
     pub fn history(&self) -> Result<Vec<AppliedChange>, StagingError> {
         if !self.history_path.is_file() {
             return Ok(Vec::new());
@@ -368,17 +391,36 @@ impl StagingStore {
             path: self.history_path.clone(),
             source,
         })?;
-        let mut out = Vec::new();
-        for line in raw.lines().filter(|l| !l.trim().is_empty()) {
-            out.push(serde_json::from_str(line)?);
-        }
+        let mut out: Vec<AppliedChange> = raw
+            .lines()
+            .enumerate()
+            .filter(|(_, l)| !l.trim().is_empty())
+            .filter_map(|(n, line)| self.parse_history_line(n, line))
+            .collect();
         out.reverse();
         Ok(out)
+    }
+
+    fn parse_history_line(&self, index: usize, line: &str) -> Option<AppliedChange> {
+        match serde_json::from_str(line) {
+            Ok(entry) => Some(entry),
+            Err(e) => {
+                log::warn!(
+                    "entrada de historial corrupta, se saltea: {}:{} ({e})",
+                    self.history_path.display(),
+                    index + 1
+                );
+                None
+            }
+        }
     }
 
     /// Busca una entrada de historial por id sin construir/reordenar el Vec
     /// entero: recorre el log más reciente primero y corta en la primera
     /// coincidencia (los ids son únicos). Es lo que usa `revert`.
+    ///
+    /// Igual que [`Self::history`], una línea corrupta se saltea: la entrada que
+    /// el usuario quiere revertir puede estar perfectamente sana más abajo.
     fn find_applied(&self, id: &str) -> Result<AppliedChange, StagingError> {
         if !self.history_path.is_file() {
             return Err(StagingError::NotFound(id.to_string()));
@@ -387,10 +429,15 @@ impl StagingStore {
             path: self.history_path.clone(),
             source,
         })?;
-        for line in raw.lines().rev().filter(|l| !l.trim().is_empty()) {
-            let entry: AppliedChange = serde_json::from_str(line)?;
-            if entry.id == id {
-                return Ok(entry);
+        let lines: Vec<&str> = raw.lines().collect();
+        for (n, line) in lines.iter().enumerate().rev() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            if let Some(entry) = self.parse_history_line(n, line) {
+                if entry.id == id {
+                    return Ok(entry);
+                }
             }
         }
         Err(StagingError::NotFound(id.to_string()))
@@ -681,6 +728,55 @@ mod tests {
             listed[0].created_at <= listed[1].created_at,
             "list() debe devolver los borradores más viejos primero"
         );
+    }
+
+    /// Un archivo espurio en el directorio de staging (lo deja cualquier
+    /// explorador de archivos, un antivirus o un append interrumpido) rompía
+    /// `list()`, y con él `stage()` — o sea, la app entera se quedaba sin poder
+    /// guardar un borrador.
+    #[test]
+    fn an_unexpected_file_in_the_staging_dir_does_not_break_listing_or_staging() {
+        let (app_data, claude_home, store) = setup();
+        let target = claude_home.path().join("memory.md");
+        fs::write(&target, "original\n").unwrap();
+        store.stage(&target, "borrador\n".to_string()).unwrap();
+
+        let staging_dir = app_data.path().join("staging");
+        fs::write(staging_dir.join("Thumbs.db"), b"\x00basura").unwrap();
+        fs::write(staging_dir.join("a-medio-escribir.json"), "{ \"id\": ").unwrap();
+        fs::create_dir_all(staging_dir.join("un-subdirectorio")).unwrap();
+
+        let listed = store.list().unwrap();
+        assert_eq!(listed.len(), 1, "solo el borrador sano debe listarse");
+
+        let otro = claude_home.path().join("otro.md");
+        store
+            .stage(&otro, "otro borrador\n".to_string())
+            .expect("con basura al lado se tiene que poder seguir guardando borradores");
+        assert_eq!(store.list().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_corrupt_line_in_the_history_does_not_kill_the_rest_of_the_log() {
+        let (app_data, claude_home, store) = setup();
+        let target = claude_home.path().join("memory.md");
+        fs::write(&target, "v1\n").unwrap();
+
+        let change = store.stage(&target, "v2\n".to_string()).unwrap();
+        let applied = store.apply(&change.id).unwrap();
+
+        // Append interrumpido: una línea truncada al final del log.
+        let history_path = app_data.path().join("history.jsonl");
+        let raw = fs::read_to_string(&history_path).unwrap();
+        fs::write(&history_path, format!("{raw}{{\"id\":\"trunc")).unwrap();
+
+        let history = store.history().unwrap();
+        assert_eq!(history.len(), 1, "la entrada sana tiene que sobrevivir");
+        assert_eq!(history[0].id, applied.id);
+
+        // Y el revert de la entrada sana sigue funcionando.
+        store.revert(&applied.id).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), "v1\n");
     }
 
     #[test]

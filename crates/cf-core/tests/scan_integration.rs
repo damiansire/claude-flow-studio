@@ -158,3 +158,12 @@ fn missing_directories_return_empty_lists_not_errors() {
     assert!(scan::list_commands(root.path()).unwrap().is_empty());
     assert!(scan::list_workflows(root.path()).unwrap().is_empty());
 }
+
+/// Instalación nueva: `~/.claude/CLAUDE.md` todavía no existe. Es el estado
+/// normal de la primera corrida, no un error — la pestaña Reglas tiene que
+/// poder pintar un estado vacío en vez del errno crudo del SO.
+#[test]
+fn read_claude_md_on_a_fresh_install_returns_empty_not_an_error() {
+    let root = tempdir().unwrap();
+    assert_eq!(scan::read_claude_md(root.path()).unwrap(), "");
+}

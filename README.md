@@ -77,6 +77,8 @@ seguridad (`src-tauri/tests/config_contract.rs`). Se corren con
 | JSON inválido en el borrador falla sin tocar el archivo real | `applying_malformed_settings_json_fails_closed_and_leaves_the_file_intact` (cf-core) |
 | El diff que revisás es exactamente lo que `apply` escribe (se calcula contra el resultado mergeado y contra el disco actual, no contra una foto vieja) | `diff_of_settings_json_matches_the_merged_content_that_apply_writes`, `diff_reflects_current_disk_state_not_just_the_draft` (cf-core) |
 | La webview no tiene NINGÚN permiso de filesystem (ni scoped): el único camino de escritura es `stage_change` → `apply_staged`, y el plugin `fs` no está registrado | `fs_capability_grants_no_filesystem_permission_at_all`, `the_app_does_not_register_the_filesystem_plugin` (config_contract) |
+| Los caminos de LECTURA degradan en vez de romper: basura en el staging dir o una línea corrupta en `history.jsonl` no inutilizan borradores, historial ni revert | `an_unexpected_file_in_the_staging_dir_does_not_break_listing_or_staging`, `a_corrupt_line_in_the_history_does_not_kill_the_rest_of_the_log` (cf-core) |
+| Una instalación sin `~/.claude/CLAUDE.md` muestra estado vacío, no un errno del SO | `read_claude_md_on_a_fresh_install_returns_empty_not_an_error` (scan_integration) |
 | CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-eval`, `object-src`/`base-uri`/`frame-ancestors 'none'`) | `production_csp_is_restrictive` (config_contract) |
 
 Comportamiento ante edición externa concurrente (documentado por test, no

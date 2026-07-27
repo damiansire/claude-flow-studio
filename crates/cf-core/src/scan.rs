@@ -209,8 +209,18 @@ pub fn list_workflows(claude_dir: &Path) -> Result<Vec<Workflow>, ScanError> {
 
 /// El `CLAUDE.md` global (reglas de todos los proyectos). Solo lectura: no
 /// forma parte de los 4 tipos de contenido editables de esta app.
+///
+/// "Todavía no existe" es el estado normal de una instalación nueva, no un
+/// error: devuelve `Ok("")` y deja que la vista pinte un estado vacío. Antes
+/// propagaba el errno crudo del SO y la pestaña Reglas arrancaba mostrando "The
+/// system cannot find the file specified. (os error 2)" en la primera corrida.
 pub fn read_claude_md(claude_dir: &Path) -> Result<String, ScanError> {
-    read_to_string(&claude_dir.join("CLAUDE.md"))
+    let path = claude_dir.join("CLAUDE.md");
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => Ok(raw),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(source) => Err(ScanError::Io { path, source }),
+    }
 }
 
 /// Busca `key: '...'` o `key: "..."` en un source JS y devuelve el contenido
