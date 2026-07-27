@@ -77,9 +77,21 @@ pub fn settings_path(app: tauri::AppHandle) -> Result<String, AppError> {
 /// listado, pero igual se valida: nunca confiar en un path que cruza el IPC.
 #[tauri::command]
 pub async fn read_file_content(app: tauri::AppHandle, path: String) -> Result<String, AppError> {
-    let dir = claude_dir(&app)?;
+    read_file_content_impl(claude_dir(&app)?, path).await
+}
+
+/// El trabajo real de [`read_file_content`], con el `claude_dir` explícito.
+///
+/// Mismo corte `_impl` que la capa de staging, y por el mismo motivo: es el
+/// único comando que recibe un path del IPC, así que su guardrail tiene que ser
+/// ejercitable por un test con I/O real, sin un `AppHandle` (que exige una
+/// ventana de Tauri). Ver `src-tauri/tests/read_integration.rs`.
+pub async fn read_file_content_impl(
+    claude_dir: std::path::PathBuf,
+    path: String,
+) -> Result<String, AppError> {
     let target = std::path::PathBuf::from(path);
-    ensure_within_claude_dir(&dir, &target)?;
+    ensure_within_claude_dir(&claude_dir, &target)?;
     blocking(move || {
         std::fs::read_to_string(&target).map_err(|source| AppError::Io {
             path: target,
