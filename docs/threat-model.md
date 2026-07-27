@@ -56,9 +56,12 @@ que la app misma es un vector de escritura no autorizada sobre `~/.claude`.
   Linux/macOS (donde `canonicalize` es `realpath(3)` y falla con ENOENT ante
   cualquier componente intermedio inexistente) `~/.claude/nueva/../../evil.md`
   pasaba el chequeo y `apply` escribía afuera. Cubierto por
-  `ensure_within_rejects_a_dotdot_behind_a_component_that_does_not_exist_yet` y
+  `ensure_within_rejects_a_dotdot_behind_a_component_that_does_not_exist_yet`,
   `apply_rejects_a_dotdot_escape_through_a_missing_directory_and_writes_nothing`
-  (cf-core).
+  y `ensure_within_rejects_an_unresolved_dotdot_even_if_it_points_back_inside`
+  (cf-core). Este último es la red que muerde también en Windows: los dos
+  primeros solo distinguen el algoritmo viejo en Unix, porque Win32 colapsa los
+  `..` léxicamente y para esos targets el bug viejo también rechazaba.
 - **`id` de borrador usado como nombre de archivo**: el `id` llega crudo del IPC
   y `StagingStore::change_path` lo convierte en `staging/<id>.json`. Se valida
   con allowlist (`[0-9A-Za-z._-]`, sin separadores ni `..`) antes de tocar
@@ -143,10 +146,15 @@ que la app misma es un vector de escritura no autorizada sobre `~/.claude`.
   explotable sin ninguna red de contención adicional.
 - **CI corre solo en `windows-latest`**: el bug de `..` detrás de un componente
   inexistente estaba tapado en Windows porque Win32 normaliza los `..`
-  léxicamente antes del syscall, y el gate no podía verlo. El test que lo cubre
-  ahora falla en las tres plataformas, pero mientras CI no tenga una matriz
-  ubuntu/macOS para `cf-core`, cualquier bug de path específico de Unix sigue
-  siendo estructuralmente indetectable por el gate.
+  léxicamente antes del syscall, y el gate no podía verlo. Los tests con forma
+  de escape (`rejects_a_dotdot_escape…`) siguen siendo ciegos a la regresión en
+  Windows por esa misma normalización (verificado por mutación: reintroducir el
+  pop incondicional los deja en verde);
+  `ensure_within_rejects_an_unresolved_dotdot_even_if_it_points_back_inside`
+  existe justamente para que la regresión rompa el gate en Windows también.
+  Aun así, mientras CI no tenga una matriz ubuntu/macOS para `cf-core`,
+  cualquier OTRO bug de path específico de Unix sigue siendo estructuralmente
+  indetectable por el gate.
 
 ## Cómo se actualiza este documento
 

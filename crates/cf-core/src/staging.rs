@@ -1002,6 +1002,38 @@ mod tests {
         );
     }
 
+    /// La red que muerde también en Windows (el único SO del CI). El test de
+    /// arriba no distingue el algoritmo viejo en Windows: Win32 colapsa los
+    /// `..` léxicamente antes del syscall, así que para ese target el ancestro
+    /// canonicalizable queda FUERA del root y el bug viejo también rechazaba.
+    /// Acá el `..` resuelve léxicamente a un path DENTRO del boundary, pero
+    /// detrás de dos componentes inexistentes: ni Win32 ni realpath(3)
+    /// encuentran un ancestro que lo salve antes del `..`. El contrato
+    /// fail-closed exige rechazar todo `..` sin resolver, venga a donde venga;
+    /// el algoritmo viejo (pop incondicional) retrocede hasta el root y lo
+    /// acepta, en Windows y en Unix por igual. Reintroducir el pop incondicional
+    /// rompe este test en cualquier plataforma.
+    #[test]
+    fn ensure_within_rejects_an_unresolved_dotdot_even_if_it_points_back_inside() {
+        let root = tempdir().unwrap();
+        let claude = root.path().join(".claude");
+        fs::create_dir_all(&claude).unwrap();
+
+        let target = claude
+            .join("no-existe-a")
+            .join("no-existe-b")
+            .join("..")
+            .join("adentro.md");
+
+        assert!(
+            matches!(
+                ensure_within(&claude, &target),
+                Err(StagingError::OutsideBoundary { .. })
+            ),
+            "un `..` que quedó sin resolver se rechaza aunque apunte adentro del boundary"
+        );
+    }
+
     #[test]
     fn apply_rejects_a_dotdot_escape_through_a_missing_directory_and_writes_nothing() {
         let app_data = tempdir().unwrap();
