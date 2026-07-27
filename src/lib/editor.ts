@@ -38,6 +38,16 @@ let currentPath = "";
 let currentStagedId: string | null = null;
 /** El elemento que tenía el foco al abrir el modal, para devolvérselo al cerrar. */
 let lastFocused: HTMLElement | null = null;
+/** Lo que se cargó en el textarea (archivo real o borrador pendiente), para
+ *  saber si el usuario tipeó algo que todavía no guardó. */
+let loadedContent = "";
+/** Generación de apertura: `openEditor` es async y dos clicks seguidos (o Enter
+ *  en una card y click en otra) hacían que la respuesta más lenta pisara la
+ *  última apertura — el modal quedaba con el título de B y el texto y el
+ *  `currentStagedId` de A, así que "Aplicar" escribía el borrador equivocado. */
+let openGeneration = 0;
+/** Hay una mutación en vuelo (stage/apply/discard/diff). */
+let busy = false;
 
 /** Notifica que se tocó un archivo real de ~/.claude, para que la vista activa
  *  se refresque (contadores, listas, historial). Lo escucha `main.ts`. */
@@ -115,7 +125,21 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+/** `true` si hay texto tipeado que no se guardó como borrador. */
+function hasUnsavedEdits(): boolean {
+  return !textarea.readOnly && textarea.value !== loadedContent;
+}
+
 function closeEditor() {
+  // Escape o click en el overlay cerraban tirando lo tipeado sin decir nada.
+  // Guardar el borrador es no destructivo (no toca el archivo real), pero
+  // hacerlo solo hace ruido si el usuario quería descartar: se pregunta.
+  if (
+    hasUnsavedEdits() &&
+    !window.confirm("Tenés cambios sin guardar como borrador. ¿Cerrar y perderlos?")
+  ) {
+    return;
+  }
   overlay.classList.add("hidden");
   // Devolver el foco al abridor. Si aplicar/descartar re-renderizó la vista, la
   // card original quedó huérfana (isConnected=false); en ese caso caemos al
@@ -142,8 +166,10 @@ function setStagedControls(hasStagedChange: boolean) {
 /** `readOnly`: para contenido fuera del alcance editable de esta app (agentes,
  * tareas programadas) — mismo modal, pero sin guardar/aplicar/descartar. */
 export async function openEditor(title: string, path: string, opts: { readOnly?: boolean } = {}) {
+  const gen = ++openGeneration;
   currentPath = path;
   currentStagedId = null;
+  loadedContent = "";
   lastFocused = document.activeElement as HTMLElement | null;
   titleEl.textContent = opts.readOnly ? `${title} (solo lectura)` : title;
   textarea.value = "cargando...";
@@ -157,8 +183,11 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
 
   if (opts.readOnly) {
     try {
-      textarea.value = await api.readFileContent(path);
+      const content = await api.readFileContent(path);
+      if (gen !== openGeneration) return;
+      textarea.value = content;
     } catch (err) {
+      if (gen !== openGeneration) return;
       textarea.value = "";
       setStatus(`No se pudo leer el archivo: ${errorMessage(err)}`, true);
     }
@@ -167,6 +196,10 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
 
   try {
     const [content, staged] = await Promise.all([api.readFileContent(path), api.listStaged()]);
+    // Otra apertura ganó la carrera: descartar esta respuesta entera. Escribir
+    // el textarea acá dejaría el modal mostrando el título de un archivo con el
+    // contenido y el borrador de otro, y "Aplicar" escribiría el equivocado.
+    if (gen !== openGeneration) return;
     const pending = staged.find((s) => s.target_path === path);
     if (pending) {
       currentStagedId = pending.id;
@@ -176,64 +209,101 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
     } else {
       textarea.value = content;
     }
+    loadedContent = textarea.value;
   } catch (err) {
+    if (gen !== openGeneration) return;
     textarea.value = "";
     setStatus(`No se pudo leer el archivo: ${errorMessage(err)}`, true);
   }
 }
 
-async function onStage() {
+/** Corre una mutación con los controles bloqueados y guard de reentrada.
+ *
+ *  Sin esto, un doble click en "Aplicar" disparaba dos `apply_staged` con el
+ *  mismo id: el segundo hacía un backup del archivo YA modificado y duplicaba la
+ *  entrada de historial, o sea el "revertir" de esa entrada restauraba el estado
+ *  nuevo. `historial.ts` ya hacía este bloqueo; el modal no. */
+async function withBusy(fn: () => Promise<void>) {
+  if (busy) return;
+  busy = true;
+  stageBtn.disabled = true;
+  setStagedControls(false);
   try {
-    const staged = await api.stageChange(currentPath, textarea.value);
-    currentStagedId = staged.id;
-    setStatus("Borrador guardado. No se tocó el archivo real todavía.");
-    setStagedControls(true);
-    diffPre.classList.add("hidden");
-  } catch (err) {
-    setStatus(`No se pudo guardar el borrador: ${errorMessage(err)}`, true);
+    await fn();
+  } finally {
+    busy = false;
+    stageBtn.disabled = false;
+    // Restaurar según el estado real, no según una foto previa: `fn` pudo
+    // crear o consumir el borrador.
+    setStagedControls(currentStagedId !== null);
   }
 }
 
-async function onShowDiff() {
-  if (!currentStagedId) return;
-  try {
-    const diff = await api.diffStaged(currentStagedId);
-    diffPre.innerHTML = diff ? renderDiffHtml(diff) : "(sin diferencias con el archivo real actual)";
-    diffPre.classList.remove("hidden");
-  } catch (err) {
-    setStatus(`No se pudo calcular el diff: ${errorMessage(err)}`, true);
-  }
+function onStage() {
+  return withBusy(async () => {
+    try {
+      const staged = await api.stageChange(currentPath, textarea.value);
+      currentStagedId = staged.id;
+      loadedContent = textarea.value;
+      setStatus("Borrador guardado. No se tocó el archivo real todavía.");
+      diffPre.classList.add("hidden");
+    } catch (err) {
+      setStatus(`No se pudo guardar el borrador: ${errorMessage(err)}`, true);
+    }
+  });
 }
 
-async function onApply() {
-  if (!currentStagedId) return;
-  try {
-    await api.applyStaged(currentStagedId);
-    setStatus("Aplicado — el archivo real ya se actualizó (queda backup en el historial).");
-    currentStagedId = null;
-    setStagedControls(false);
-    diffPre.classList.add("hidden");
-    // El botón que tenía el foco se acaba de deshabilitar; sin esto el foco cae
-    // al <body> (fuera del overlay) y Escape/focus-trap dejan de funcionar.
-    textarea.focus();
-    notifyMutated();
-  } catch (err) {
-    setStatus(`No se pudo aplicar: ${errorMessage(err)}`, true);
-  }
+function onShowDiff() {
+  const id = currentStagedId;
+  if (!id) return Promise.resolve();
+  return withBusy(async () => {
+    try {
+      const diff = await api.diffStaged(id);
+      diffPre.innerHTML = diff
+        ? renderDiffHtml(diff)
+        : "(sin diferencias con el archivo real actual)";
+      diffPre.classList.remove("hidden");
+    } catch (err) {
+      setStatus(`No se pudo calcular el diff: ${errorMessage(err)}`, true);
+    }
+  });
 }
 
-async function onDiscard() {
-  if (!currentStagedId) return;
-  try {
-    await api.discardStaged(currentStagedId);
-    setStatus("Borrador descartado. El archivo real no se tocó.");
-    currentStagedId = null;
-    setStagedControls(false);
-    diffPre.classList.add("hidden");
-    // Ver nota en onApply: reenfocar para no perder el foco fuera del modal.
-    textarea.focus();
-    notifyMutated();
-  } catch (err) {
-    setStatus(`No se pudo descartar: ${errorMessage(err)}`, true);
-  }
+function onApply() {
+  const id = currentStagedId;
+  if (!id) return Promise.resolve();
+  return withBusy(async () => {
+    try {
+      await api.applyStaged(id);
+      setStatus("Aplicado — el archivo real ya se actualizó (queda backup en el historial).");
+      currentStagedId = null;
+      loadedContent = textarea.value;
+      diffPre.classList.add("hidden");
+      // El botón que tenía el foco se acaba de deshabilitar; sin esto el foco cae
+      // al <body> (fuera del overlay) y Escape/focus-trap dejan de funcionar.
+      textarea.focus();
+      notifyMutated();
+    } catch (err) {
+      setStatus(`No se pudo aplicar: ${errorMessage(err)}`, true);
+    }
+  });
+}
+
+function onDiscard() {
+  const id = currentStagedId;
+  if (!id) return Promise.resolve();
+  return withBusy(async () => {
+    try {
+      await api.discardStaged(id);
+      setStatus("Borrador descartado. El archivo real no se tocó.");
+      currentStagedId = null;
+      loadedContent = textarea.value;
+      diffPre.classList.add("hidden");
+      // Ver nota en onApply: reenfocar para no perder el foco fuera del modal.
+      textarea.focus();
+      notifyMutated();
+    } catch (err) {
+      setStatus(`No se pudo descartar: ${errorMessage(err)}`, true);
+    }
+  });
 }

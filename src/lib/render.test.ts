@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { cardHtml } from "./cards";
-import { escapeHtml } from "./render";
+import { beginView, escapeHtml, withView } from "./render";
 
 /** Parsea un fragmento de HTML igual que lo haría el navegador al asignarlo a
  *  `innerHTML`: sin esto, afirmar sobre el string es afirmar sobre la intención,
@@ -65,5 +65,67 @@ describe("cardHtml en contexto de atributo", () => {
 
     expect(host.querySelector("img")).toBeNull();
     expect(host.textContent).toContain('<img src=x onerror="boom()">');
+  });
+});
+
+describe("withView y el guard de generación de vista", () => {
+  /** Promesa con resolve expuesto, para ordenar a mano quién responde primero. */
+  function deferred<T>() {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  }
+
+  it("una vista lenta no pisa la que se activó después", async () => {
+    const container = document.createElement("div");
+    const slow = deferred<string>();
+
+    beginView();
+    const viejo = withView(
+      container,
+      () => slow.promise,
+      (d) => `<p>${d}</p>`,
+    );
+
+    // El usuario cambia de pestaña: la vista nueva pinta primero.
+    beginView();
+    await withView(
+      container,
+      () => Promise.resolve("pestaña nueva"),
+      (d) => `<p>${d}</p>`,
+    );
+    expect(container.textContent).toBe("pestaña nueva");
+
+    // Recién ahora contesta la vista vieja.
+    slow.resolve("pestaña vieja");
+    await viejo;
+
+    expect(container.textContent).toBe("pestaña nueva");
+  });
+
+  it("el error de una vista abandonada tampoco pisa la vista vigente", async () => {
+    const container = document.createElement("div");
+    const slow = deferred<string>();
+
+    beginView();
+    const viejo = withView(
+      container,
+      () => slow.promise,
+      (d) => `<p>${d}</p>`,
+    );
+
+    beginView();
+    await withView(
+      container,
+      () => Promise.resolve("pestaña nueva"),
+      (d) => `<p>${d}</p>`,
+    );
+
+    slow.resolve(Promise.reject(new Error("backend caído")) as unknown as string);
+    await viejo;
+
+    expect(container.textContent).toBe("pestaña nueva");
   });
 });

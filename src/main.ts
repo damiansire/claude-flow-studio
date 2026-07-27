@@ -1,4 +1,5 @@
 import { mountEditorModal } from "./lib/editor";
+import { beginView } from "./lib/render";
 import { renderAgentes } from "./views/agentes";
 import { renderAutomatizacion } from "./views/automatizacion";
 import { renderComandos } from "./views/comandos";
@@ -51,6 +52,11 @@ const buttons = Array.from(app.querySelectorAll<HTMLButtonElement>('button[role=
 let currentTab = TABS[0].id;
 
 async function activate(tabId: string, focusTab = false) {
+  // Invalida el render en vuelo de la pestaña anterior ANTES de arrancar el
+  // nuevo: sin esto, una respuesta lenta de la pestaña que el usuario acaba de
+  // abandonar pisaba la que eligió (basta navegar con flechas, que dispara un
+  // escaneo por keypress).
+  beginView();
   currentTab = tabId;
   buttons.forEach((b) => {
     const selected = b.dataset.tab === tabId;

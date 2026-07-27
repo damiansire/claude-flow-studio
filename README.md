@@ -83,6 +83,10 @@ y `npm test` (frontend)
 | `read_file_content` (el único comando que recibe un path del IPC) rechaza todo path fuera de `~/.claude` y devuelve error tipado si el archivo desapareció | `rejects_a_relative_dotdot_escape_without_reading_anything`, `rejects_an_absolute_path_outside_the_claude_dir`, `rejects_a_dotdot_behind_a_directory_that_does_not_exist`, `a_file_deleted_between_listing_and_opening_returns_a_typed_io_error` (read_integration) |
 | El escapado del frontend aguanta contexto de ATRIBUTO: un `name:` de frontmatter con comilla doble no inyecta atributos ni anula `data-readonly` | `render.test.ts` (vitest + jsdom, `npm test`) |
 | La vista general renderiza `model`/`theme` de `settings.json` como texto, no como markup | `overview.test.ts` (vitest + jsdom) |
+| Cambiar de pestaña descarta el render en vuelo: una respuesta lenta no pisa la vista que el usuario ya eligió | `render.test.ts` (bloque `withView y el guard de generación de vista`) |
+| Abrir dos archivos seguidos no mezcla el título de uno con el contenido y el borrador del otro | `editor.test.ts` (`una apertura lenta no pisa la que el usuario abrió después`) |
+| Doble click en Aplicar dispara un solo `apply_staged` (no duplica historial ni backup) | `editor.test.ts` (`doble click en Aplicar dispara un solo apply_staged`) |
+| Cerrar el editor con texto sin guardar avisa antes de perderlo | `editor.test.ts` (`cerrar con texto sin guardar pide confirmación y respeta el 'no'`) |
 | CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-eval`, `object-src`/`base-uri`/`frame-ancestors 'none'`) | `production_csp_is_restrictive` (config_contract) |
 
 Comportamiento ante edición externa concurrente (documentado por test, no
