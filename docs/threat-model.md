@@ -43,10 +43,29 @@ que la app misma es un vector de escritura no autorizada sobre `~/.claude`.
   `discard_staged_leaves_the_real_file_untouched`
   (`src-tauri/tests/staging_integration.rs`).
 - **Path traversal / escape de `~/.claude` al crear un borrador**:
-  `ensure_within_claude_dir` (`src-tauri/src/paths.rs`) canonicaliza el target
-  antes de compararlo contra la raíz — neutraliza `..` en cualquier posición y
-  symlinks que apunten afuera. Cubierto en `paths.rs` (`rejects_a_dotdot_escape…`)
-  y en la integración (`stage_change_rejects_a_target_outside_claude_dir`).
+  `cf_core::staging::ensure_within` es la ÚNICA implementación del guardrail
+  (`ensure_within_claude_dir` en `src-tauri/src/paths.rs` es un wrapper que solo
+  mapea el error). Canonicaliza el target antes de compararlo contra la raíz —
+  neutraliza `..` en cualquier posición y symlinks que apunten afuera. Cubierto
+  en `paths.rs` (`rejects_a_dotdot_escape…`) y en la integración
+  (`stage_change_rejects_a_target_outside_claude_dir`).
+- **`..` detrás de un componente que todavía no existe**: cuando el target aún
+  no existe entero (caso legítimo: una skill nueva), el guardrail retrocede al
+  ancestro más cercano que exista, pero SOLO descartando nombres normales. Un
+  `..` sin resolver hace fallar el chequeo en vez de descartarse: sin eso, en
+  Linux/macOS (donde `canonicalize` es `realpath(3)` y falla con ENOENT ante
+  cualquier componente intermedio inexistente) `~/.claude/nueva/../../evil.md`
+  pasaba el chequeo y `apply` escribía afuera. Cubierto por
+  `ensure_within_rejects_a_dotdot_behind_a_component_that_does_not_exist_yet` y
+  `apply_rejects_a_dotdot_escape_through_a_missing_directory_and_writes_nothing`
+  (cf-core).
+- **`id` de borrador usado como nombre de archivo**: el `id` llega crudo del IPC
+  y `StagingStore::change_path` lo convierte en `staging/<id>.json`. Se valida
+  con allowlist (`[0-9A-Za-z._-]`, sin separadores ni `..`) antes de tocar
+  disco; el boundary de `with_boundary` NO cubre este path porque aplica al
+  `target_path`. Cubierto por
+  `discard_rejects_a_traversal_id_instead_of_deleting_outside_the_staging_dir` y
+  `get_rejects_a_traversal_id_instead_of_reading_outside_the_staging_dir`.
 - **Borrador o `history.jsonl` adulterado apuntando fuera del boundary**: el
   boundary se revalida DE NUEVO dentro de `apply`/`revert`
   (`StagingStore::with_boundary`, `crates/cf-core/src/staging.rs`) — defensa en
@@ -112,9 +131,15 @@ que la app misma es un vector de escritura no autorizada sobre `~/.claude`.
   (no pasan por `tauri-plugin-fs`, ver comentario en `paths.rs`), así que la
   única barrera real es el chequeo de boundary en código Rust propio — no hay
   una segunda capa de sandboxing de sistema operativo (a diferencia de, por
-  ejemplo, un contenedor). Un bug de lógica en `ensure_within`/
-  `ensure_within_claude_dir` no cubierto por los tests de arriba sería
+  ejemplo, un contenedor). Un bug de lógica en `ensure_within` (hoy una sola
+  implementación, no dos copias) no cubierto por los tests de arriba sería
   explotable sin ninguna red de contención adicional.
+- **CI corre solo en `windows-latest`**: el bug de `..` detrás de un componente
+  inexistente estaba tapado en Windows porque Win32 normaliza los `..`
+  léxicamente antes del syscall, y el gate no podía verlo. El test que lo cubre
+  ahora falla en las tres plataformas, pero mientras CI no tenga una matriz
+  ubuntu/macOS para `cf-core`, cualquier bug de path específico de Unix sigue
+  siendo estructuralmente indetectable por el gate.
 
 ## Cómo se actualiza este documento
 

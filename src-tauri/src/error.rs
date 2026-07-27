@@ -30,6 +30,7 @@ impl AppError {
                 ("outside_boundary", Some(display(target)))
             }
             AppError::Staging(StagingError::NotFound(_)) => ("not_found", None),
+            AppError::Staging(StagingError::InvalidId(_)) => ("invalid_id", None),
             AppError::Staging(StagingError::Serde(_)) => ("invalid_json", None),
             AppError::Staging(StagingError::Io { path, .. }) => ("io", Some(display(path))),
             AppError::Io { path, .. } => ("io", Some(display(path))),

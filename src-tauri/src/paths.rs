@@ -26,37 +26,26 @@ pub fn app_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
 }
 
 /// Falla si `target` (existente o no) queda fuera de `claude_dir` una vez
-/// resuelto. Resuelve por `canonicalize()` en vez de comparar strings: eso
-/// también neutraliza intentos de escape vía `..` en cualquier posición del
-/// path, no solo al final.
+/// resuelto.
+///
+/// Wrapper de mapeo de error sobre [`cf_core::staging::ensure_within`], que es
+/// la ÚNICA implementación del algoritmo. Antes esto era una copia palabra por
+/// palabra del guardrail de `cf-core`: dos copias del chequeo más crítico del
+/// sistema divergen solas (un hardening aplicado a una deja la otra vieja). La
+/// defensa en profundidad la dan las dos **llamadas** en momentos distintos
+/// (acá al crear el borrador, y de nuevo en `apply`/`revert` antes de escribir),
+/// no dos algoritmos separados.
 pub fn ensure_within_claude_dir(claude_dir: &Path, target: &Path) -> Result<(), AppError> {
-    let canon_root = claude_dir.canonicalize().map_err(|source| AppError::Io {
-        path: claude_dir.to_path_buf(),
-        source,
-    })?;
-
-    let mut probe = target.to_path_buf();
-    let canon_target = loop {
-        match probe.canonicalize() {
-            Ok(c) => break c,
-            Err(_) if probe.pop() => continue,
-            Err(source) => {
-                return Err(AppError::Io {
-                    path: target.to_path_buf(),
-                    source,
-                })
-            }
-        }
-    };
-
-    if canon_target.starts_with(&canon_root) {
-        Ok(())
-    } else {
-        Err(AppError::Path(format!(
+    cf_core::staging::ensure_within(claude_dir, target).map_err(|e| match e {
+        // El rechazo por boundary conserva el mismo `AppError::Path` (y el mismo
+        // mensaje) que emitía la copia local: el contrato hacia el IPC no cambia,
+        // solo desaparece el algoritmo duplicado.
+        cf_core::staging::StagingError::OutsideBoundary { target } => AppError::Path(format!(
             "fuera de ~/.claude, rechazado: {}",
             target.display()
-        )))
-    }
+        )),
+        other => AppError::Staging(other),
+    })
 }
 
 #[cfg(test)]
