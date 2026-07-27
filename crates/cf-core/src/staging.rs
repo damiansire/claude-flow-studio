@@ -891,6 +891,32 @@ mod tests {
         );
     }
 
+    /// Fija la consecuencia del merge por clave, que hoy es una decisión de
+    /// producto documentada (CLAUDE.md, README): borrar una clave en el borrador
+    /// NO la borra del archivo real. El editor muestra el archivo entero, así
+    /// que la asimetría productor/consumidor es real y está pendiente de
+    /// decisión; lo que este test cierra es que deje de ser un comportamiento
+    /// tácito: si algún día se cambia a semántica de reemplazo, este test falla
+    /// y obliga a tocar la doc y el aviso del editor junto con el código.
+    #[test]
+    fn applying_settings_json_cannot_delete_a_key() {
+        let (_app_data, claude_home, store) = setup();
+        let target = claude_home.path().join("settings.json");
+        fs::write(&target, r#"{"model":"opus","theme":"dark"}"#).unwrap();
+
+        // El usuario borra `theme` del textarea y aplica.
+        let change = store
+            .stage(&target, r#"{"model":"opus"}"#.to_string())
+            .unwrap();
+        store.apply(&change.id).unwrap();
+
+        let written: Value = serde_json::from_str(&fs::read_to_string(&target).unwrap()).unwrap();
+        assert_eq!(
+            written["theme"], "dark",
+            "el merge por clave preserva lo que el borrador no menciona: borrar no elimina"
+        );
+    }
+
     #[test]
     fn applying_malformed_settings_json_fails_closed_and_leaves_the_file_intact() {
         let (_app_data, claude_home, store) = setup();

@@ -210,6 +210,15 @@ export async function openEditor(title: string, path: string, opts: { readOnly?:
       textarea.value = content;
     }
     loadedContent = textarea.value;
+    // El textarea muestra el archivo entero, pero un `.json` se aplica con merge
+    // por clave: lo que el usuario borre acá NO se elimina del archivo real.
+    // Callarlo es perder su intención en silencio. (Cambiar la semántica a
+    // reemplazo es una decisión de producto pendiente, ver CLAUDE.md.)
+    if (path.toLowerCase().endsWith(".json")) {
+      const aviso =
+        "Ojo: los .json se aplican con merge por clave — lo que borres acá no se elimina del archivo real.";
+      setStatus(statusEl.textContent ? `${statusEl.textContent} ${aviso}` : aviso);
+    }
   } catch (err) {
     if (gen !== openGeneration) return;
     textarea.value = "";

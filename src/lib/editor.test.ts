@@ -156,3 +156,27 @@ describe("editor modal", () => {
     confirmSpy.mockRestore();
   });
 });
+
+describe("aviso de merge por clave en .json", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    files.clear();
+    staged.length = 0;
+    readFileContent = (path) => Promise.resolve(files.get(path) ?? "");
+    mountEditorModal(document.body);
+  });
+
+  it("abrir un .json avisa que borrar una clave no la elimina", async () => {
+    files.set("/settings.json", '{"model":"opus"}');
+    await openEditor("settings.json", "/settings.json");
+
+    expect(el<HTMLDivElement>("#editor-status").textContent).toContain("merge por clave");
+  });
+
+  it("un .md no muestra ese aviso", async () => {
+    files.set("/memoria.md", "texto");
+    await openEditor("memoria.md", "/memoria.md");
+
+    expect(el<HTMLDivElement>("#editor-status").textContent).toBe("");
+  });
+});

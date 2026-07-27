@@ -39,6 +39,15 @@ contrato, no aspiración (hay tests que fallan si se rompen):
 
 Si tocás `staging.rs`, no rompas este flujo — es la razón de ser del proyecto.
 
+**Asimetría abierta (pendiente de decisión de producto):** el editor muestra el
+archivo `.json` ENTERO, pero se aplica con merge por clave, así que borrar una
+clave en el borrador no la elimina del archivo real. Hoy el editor lo avisa al
+abrir (`editor.ts`) y el test `applying_settings_json_cannot_delete_a_key` fija
+la consecuencia, para que deje de ser tácita. Resolverlo de verdad exige elegir
+entre semántica de reemplazo (coherente con el textarea de archivo entero, pero
+rompe la garantía de preservar claves que la app no conoce) y un camino de
+borrado explícito en la UI. No lo cambies sin esa decisión.
+
 **Limitación conocida:** los backups y el `history.jsonl` crecen sin cota. No hay
 retención automática *a propósito*: podar backups sin orfanar entradas revertibles
 del historial requiere una decisión de producto (cuánto historial conservar vs.

@@ -87,6 +87,7 @@ y `npm test` (frontend)
 | Abrir dos archivos seguidos no mezcla el título de uno con el contenido y el borrador del otro | `editor.test.ts` (`una apertura lenta no pisa la que el usuario abrió después`) |
 | Doble click en Aplicar dispara un solo `apply_staged` (no duplica historial ni backup) | `editor.test.ts` (`doble click en Aplicar dispara un solo apply_staged`) |
 | Cerrar el editor con texto sin guardar avisa antes de perderlo | `editor.test.ts` (`cerrar con texto sin guardar pide confirmación y respeta el 'no'`) |
+| Borrar una clave en el borrador de un `.json` NO la elimina (consecuencia del merge por clave), y el editor lo avisa al abrir | `applying_settings_json_cannot_delete_a_key` (cf-core) · `editor.test.ts` (`abrir un .json avisa que borrar una clave no la elimina`) |
 | CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-eval`, `object-src`/`base-uri`/`frame-ancestors 'none'`) | `production_csp_is_restrictive` (config_contract) |
 
 Comportamiento ante edición externa concurrente (documentado por test, no
