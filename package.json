@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit",
+    "verify": "bash verify.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2"

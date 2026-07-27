@@ -17,7 +17,10 @@ cargo build
 cd ..
 
 echo "== frontend =="
-npx tsc --noEmit
+# `npm run typecheck`, no `npx tsc`: si typescript no esta instalado, npx sale 0
+# sin typechequear nada (fallo enmascarado). El script resuelve el binario local
+# o falla ruidoso.
+npm run typecheck
 npm run build
 
 echo "TODO VERDE"

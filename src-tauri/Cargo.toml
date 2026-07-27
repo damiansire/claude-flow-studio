@@ -33,6 +33,11 @@ tempfile = "3"
 # [workspace] no puede heredarlos, así que se declaran acá espejados.
 [workspace.lints.rust]
 unsafe_code = "forbid"
+unused_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
 
 [workspace.lints.clippy]
 dbg_macro = "warn"
@@ -40,6 +45,10 @@ todo = "warn"
 unimplemented = "warn"
 print_stdout = "warn"
 print_stderr = "warn"
+allow_attributes = "deny"
+get_unwrap = "warn"
+mem_forget = "warn"
+clone_on_ref_ptr = "warn"
 
 [lints]
 workspace = true

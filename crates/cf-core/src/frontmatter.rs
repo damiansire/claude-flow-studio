@@ -94,7 +94,7 @@ fn block_scalar_fold(value_after_colon: &str) -> Option<BlockFold> {
 /// a nivel 0 (o EOF). No intenta reproducir indicadores de "chomping"
 /// (`-`/`+`) al pie de la letra: siempre recorta líneas en blanco finales.
 fn collect_block_scalar(
-    lines: &mut std::iter::Peekable<std::str::Lines>,
+    lines: &mut std::iter::Peekable<std::str::Lines<'_>>,
     fold: BlockFold,
 ) -> String {
     let mut collected = Vec::new();

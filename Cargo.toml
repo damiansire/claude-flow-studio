@@ -15,6 +15,11 @@ authors = ["Damian Sire"]
 # a error.
 [workspace.lints.rust]
 unsafe_code = "forbid"
+unused_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
 
 [workspace.lints.clippy]
 dbg_macro = "warn"
@@ -22,6 +27,15 @@ todo = "warn"
 unimplemented = "warn"
 print_stdout = "warn"
 print_stderr = "warn"
+# Prohibido `#[allow]` suelto: va `#[expect(...)]`, que falla cuando el lint deja
+# de dispararse. Sin esto se acumulan supresiones zombie (saqueo biomejs/biome).
+allow_attributes = "deny"
+# unwrap_used sigue PENDIENTE: allow-unwrap-in-tests no cubre los helpers fuera
+# de #[test] en crates/cf-core/tests/, y tocar tests para que pase un gate esta
+# prohibido. get_unwrap si entra (saqueos rerun_template y egui).
+get_unwrap = "warn"
+mem_forget = "warn"
+clone_on_ref_ptr = "warn"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

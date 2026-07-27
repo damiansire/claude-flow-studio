@@ -3,9 +3,35 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+
+    // Techo de strictness (corpus node-ts, divergencia D1): una codebase chica
+    // nace con el techo, porque el costo es cero al inicio y solo sube con el
+    // tiempo. La barra vive en UN solo tsconfig; no se redeclara por paquete.
+    //
+    // Faltan dos flags del techo, pendientes porque hoy NO compilan (no se
+    // apagan por gusto, se prenden cuando se arregle el codigo):
+    //   - noUncheckedIndexedAccess: 4 accesos indexados sin guard
+    //     (src/lib/editor.ts:111,114 y src/main.ts:51,77) que exigen decidir el
+    //     comportamiento ante lista vacia, no solo un cast.
+    //   - noPropertyAccessFromIndexSignature: 16 accesos por punto sobre
+    //     DOMStringMap/index signature (api.ts, cards.ts, main.ts, historial.ts)
+    //     que hay que migrar a notacion de corchetes.
     "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+
+    // El repo es ESM ("type": "module"): verbatimModuleSyntax convierte esa
+    // eleccion en invariante de compilacion, no en convencion (corpus node-ts,
+    // divergencia D3).
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
     "skipLibCheck": true
   },
   "include": ["src"]

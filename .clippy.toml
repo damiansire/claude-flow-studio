@@ -1,1 +1,10 @@
+# `unwrap()` permitido en tests, prohibido en produccion (clippy::unwrap_used en
+# los [workspace.lints] de Cargo.toml y src-tauri/Cargo.toml).
 allow-unwrap-in-tests = true
+
+# Prohibiciones explicitas, no solo thresholds (saqueos rerun_template, egui,
+# spacedrive): el metodo prohibido y su reemplazo quedan escritos en el gate.
+disallowed-methods = [
+  { path = "std::thread::spawn", reason = "usa std::thread::Builder con nombre, o el spawn_blocking de Tauri: un hilo sin nombre no se identifica en un panic ni en el log" },
+  { path = "std::env::temp_dir", reason = "usa tempfile::tempdir(): un path fijo y compartido es una carrera y una fuga entre corridas" },
+]
