@@ -24,66 +24,35 @@ fn read_json(relative: &str) -> Value {
         .unwrap_or_else(|e| panic!("JSON inválido en {}: {e}", path.display()))
 }
 
-/// Garantía del README: "capability de filesystem scoped a `$HOME/.claude/**`
-/// (mínimo privilegio)". Cada permiso `fs:*` de la capability debe declarar un
-/// allow-list y cada path de ese allow-list debe vivir bajo `$HOME/.claude`.
-/// Un permiso `fs:` en forma de string plano (como `fs:default`, que da acceso
-/// amplio sin scope) rompe el test.
+/// Garantía del README: el ÚNICO camino de escritura a `~/.claude` es
+/// `stage_change` → `apply_staged`.
+///
+/// Antes este test exigía `fs_scoped >= 2`, o sea fijaba en su lugar la
+/// concesión de `fs:allow-write-file` sobre `$HOME/.claude/**`: un permiso que
+/// habilita `invoke("plugin:fs|write_file", ...)` desde la webview y saltea
+/// staging, diff, backup e historial. El contrato correcto es el opuesto:
+/// NINGÚN permiso `fs:*`, scoped o no. Los comandos propios hacen `std::fs` y
+/// se acotan con `ensure_within_claude_dir`, no con la capability.
 #[test]
-fn fs_capability_scopes_every_permission_to_claude_dir() {
+fn fs_capability_grants_no_filesystem_permission_at_all() {
     let capability = read_json("capabilities/claude-config-access.json");
     let permissions = capability["permissions"]
         .as_array()
         .expect("la capability debe tener un array `permissions`");
 
-    let mut fs_scoped = 0;
     for permission in permissions {
-        match permission {
-            // Permiso sin scope, p.ej. "core:default". Para fs sería un
-            // agujero: "fs:default" habilita paths por defecto sin allow-list.
-            Value::String(identifier) => {
-                assert!(
-                    !identifier.starts_with("fs:"),
-                    "permiso fs sin scope en la capability: `{identifier}` — todo permiso fs debe llevar allow-list bajo $HOME/.claude"
-                );
-            }
-            Value::Object(o) => {
-                let identifier = o["identifier"]
-                    .as_str()
-                    .expect("permiso objeto sin `identifier`");
-                if !identifier.starts_with("fs:") {
-                    continue;
-                }
-                let allow = o["allow"]
-                    .as_array()
-                    .unwrap_or_else(|| panic!("permiso `{identifier}` sin allow-list"));
-                assert!(
-                    !allow.is_empty(),
-                    "permiso `{identifier}` con allow-list vacío"
-                );
-                assert!(
-                    o.get("deny").is_none(),
-                    "permiso `{identifier}` usa deny-list: el contrato es allow-list pura (fail-closed)"
-                );
-                for entry in allow {
-                    let path = entry["path"]
-                        .as_str()
-                        .unwrap_or_else(|| panic!("entrada de allow sin `path` en `{identifier}`"));
-                    assert!(
-                        path == "$HOME/.claude" || path.starts_with("$HOME/.claude/"),
-                        "permiso `{identifier}` permite `{path}`, fuera de $HOME/.claude"
-                    );
-                }
-                fs_scoped += 1;
-            }
+        let identifier = match permission {
+            Value::String(identifier) => identifier.as_str(),
+            Value::Object(o) => o["identifier"]
+                .as_str()
+                .expect("permiso objeto sin `identifier`"),
             other => panic!("forma de permiso inesperada en la capability: {other}"),
-        }
+        };
+        assert!(
+            !identifier.starts_with("fs:"),
+            "la capability concede `{identifier}`: cualquier permiso fs le abre a la webview un canal de escritura/lectura que no pasa por el staging"
+        );
     }
-
-    assert!(
-        fs_scoped >= 2,
-        "la capability debería declarar al menos lectura y escritura scoped (hay {fs_scoped}); si se reestructuró, actualizar este test junto con el README"
-    );
 
     // La capability tiene que estar realmente cableada en tauri.conf.json:
     // un archivo de capability huérfano no protege nada.
@@ -96,6 +65,33 @@ fn fs_capability_scopes_every_permission_to_claude_dir() {
     assert!(
         wired,
         "claude-config-access no está referenciada en app.security.capabilities"
+    );
+}
+
+/// La otra mitad del mismo invariante: un permiso solo habilita comandos si el
+/// plugin está registrado, y un plugin registrado puede recuperar permisos por
+/// otra capability. Se gatea el registro en `lib.rs` además de la capability,
+/// para que reintroducir cualquiera de las dos mitades rompa CI.
+#[test]
+fn the_app_does_not_register_the_filesystem_plugin() {
+    let lib_rs =
+        fs::read_to_string(manifest_path("src/lib.rs")).expect("no se pudo leer src/lib.rs");
+    let code: String = lib_rs
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        !code.contains("tauri_plugin_fs"),
+        "src/lib.rs registra tauri_plugin_fs: eso expone `plugin:fs|write_file` a la webview y saltea el staging"
+    );
+
+    let cargo_toml =
+        fs::read_to_string(manifest_path("Cargo.toml")).expect("no se pudo leer Cargo.toml");
+    assert!(
+        !cargo_toml.contains("tauri-plugin-fs"),
+        "Cargo.toml sigue declarando tauri-plugin-fs: dependencia sin consumidor y superficie IPC latente"
     );
 }
 

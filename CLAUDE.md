@@ -47,9 +47,14 @@ de diseño, no un descuido.
 
 ## Permisos filesystem
 
-`src-tauri/capabilities/claude-config-access.json` scoped a `$HOME/.claude/**` —
-principio de mínimo privilegio. Si agregás un comando nuevo que toque filesystem,
-extendé esa capability, no uses `fs:default`.
+`src-tauri/capabilities/claude-config-access.json` declara **solo `core:default`**:
+cero permisos `fs:*`, ni siquiera scoped. El IO real lo hacen los comandos propios
+(`std::fs` en `cf-core`) acotados por `ensure_within_claude_dir`, no la capability.
+Un `fs:allow-write-file` le abriría a la webview un `plugin:fs|write_file` que
+saltea staging, diff, backup e historial: el invariante del producto. Si un comando
+nuevo necesita filesystem, se escribe como comando propio con el guardrail, no se
+concede un permiso de plugin. `tests/config_contract.rs` falla si vuelve a aparecer
+un permiso `fs:*` o el registro de `tauri_plugin_fs`.
 
 ## Dev
 

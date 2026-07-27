@@ -86,11 +86,18 @@ que la app misma es un vector de escritura no autorizada sobre `~/.claude`.
   `a_corrupted_target_after_apply_is_recoverable_via_revert_from_backup`: aunque
   el archivo real termine en un estado corrupto por CUALQUIER motivo posterior,
   el backup sigue intacto y `revert_applied` restaura desde ahí.
-- **Escalada de privilegio de filesystem vía `fs:default`**: la capability
-  (`src-tauri/capabilities/claude-config-access.json`) usa permisos scoped
-  (`fs:allow-read-file`, `fs:allow-write-file`, etc. con `allow: [{ path:
-  "$HOME/.claude/**" }]`), no `fs:default`. Cualquier comando nuevo que toque
-  filesystem sin extender esa capability queda sin permiso a nivel del plugin.
+- **Canal de escritura paralelo vía `tauri-plugin-fs`**: la capability no
+  concede NINGÚN permiso `fs:*` y la app no registra el plugin `fs`. Hasta la
+  corrección, `lib.rs` registraba `tauri_plugin_fs::init()` y la capability daba
+  `fs:allow-write-file` sobre `$HOME/.claude/**`, lo que habilitaba
+  `invoke("plugin:fs|write_file", ...)` desde la webview: escritura directa
+  sobre cualquier archivo de `~/.claude` sin borrador, sin diff, sin backup y
+  sin entrada de historial. Nada del código lo usaba (el IO real lo hace
+  `std::fs` en `cf-core`, acotado por el guardrail de boundary). Cubierto por
+  `fs_capability_grants_no_filesystem_permission_at_all` y
+  `the_app_does_not_register_the_filesystem_plugin`
+  (`src-tauri/tests/config_contract.rs`), que fallan si cualquiera de las dos
+  mitades vuelve.
 - **Inyección de contenido vía la webview (XSS)**: `tauri.conf.json` fija una
   CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-inline` ni
   `unsafe-eval`, `object-src 'none'`, `frame-ancestors 'none'`) — el modo dev

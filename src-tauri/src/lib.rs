@@ -17,7 +17,12 @@ pub fn run() {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
-        .plugin(tauri_plugin_fs::init())
+        // Sin `tauri_plugin_fs`: registrarlo (con la capability que le daba
+        // `fs:allow-write-file` sobre $HOME/.claude/**) le abría a la webview
+        // un `invoke("plugin:fs|write_file", ...)` que pisa cualquier archivo de
+        // ~/.claude sin borrador, sin diff, sin backup y sin historial — o sea,
+        // un segundo camino de escritura que anula el invariante del producto.
+        // Nada del código lo usaba: el IO real lo hace `std::fs` en cf-core.
         .invoke_handler(tauri::generate_handler![
             commands::list_memories,
             commands::list_skills,

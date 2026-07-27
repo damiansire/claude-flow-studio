@@ -1,24 +1,6 @@
 {
   "identifier": "claude-config-access",
-  "description": "Acceso de lectura/escritura scoped a ~/.claude — principio de mínimo privilegio, nada fuera de esa carpeta.",
+  "description": "Solo core:default. La app NO concede ningún permiso fs a la webview: todo el IO lo hacen los comandos propios (std::fs en cf-core) acotados por el guardrail de boundary, y el único camino de escritura a ~/.claude es stage_change seguido de apply_staged. Un permiso fs:allow-write-file abriría un canal directo (plugin:fs|write_file) que saltea el staging entero, o sea el invariante del producto. Contrato ejecutable: tests/config_contract.rs falla si vuelve a aparecer.",
   "windows": ["main"],
-  "permissions": [
-    "core:default",
-    {
-      "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "$HOME/.claude/**" }]
-    },
-    {
-      "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "$HOME/.claude/**" }]
-    },
-    {
-      "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "$HOME/.claude/**" }]
-    },
-    {
-      "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$HOME/.claude/**" }]
-    }
-  ]
+  "permissions": ["core:default"]
 }

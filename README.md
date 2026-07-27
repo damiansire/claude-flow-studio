@@ -76,7 +76,7 @@ seguridad (`src-tauri/tests/config_contract.rs`). Se corren con
 | `settings.json` (y todo `.json`) se parchea por clave: merge recursivo que preserva las claves que el borrador no menciona | `applying_settings_json_preserves_keys_the_draft_did_not_mention` (cf-core) · `applying_settings_json_preserves_a_concurrent_external_edit_the_draft_did_not_touch` (staging_integration) |
 | JSON inválido en el borrador falla sin tocar el archivo real | `applying_malformed_settings_json_fails_closed_and_leaves_the_file_intact` (cf-core) |
 | El diff que revisás es exactamente lo que `apply` escribe (se calcula contra el resultado mergeado y contra el disco actual, no contra una foto vieja) | `diff_of_settings_json_matches_the_merged_content_that_apply_writes`, `diff_reflects_current_disk_state_not_just_the_draft` (cf-core) |
-| Capability de filesystem scoped a `$HOME/.claude/**` (mínimo privilegio, sin `fs:default`) y cableada en `tauri.conf.json` | `fs_capability_scopes_every_permission_to_claude_dir` (config_contract) |
+| La webview no tiene NINGÚN permiso de filesystem (ni scoped): el único camino de escritura es `stage_change` → `apply_staged`, y el plugin `fs` no está registrado | `fs_capability_grants_no_filesystem_permission_at_all`, `the_app_does_not_register_the_filesystem_plugin` (config_contract) |
 | CSP restrictiva en producción (`script-src 'self'`, sin `unsafe-eval`, `object-src`/`base-uri`/`frame-ancestors 'none'`) | `production_csp_is_restrictive` (config_contract) |
 
 Comportamiento ante edición externa concurrente (documentado por test, no
